@@ -1,0 +1,2 @@
+# This directory is for files downloaded by the application
+# Files will be stored here and mounted as a host directory in Docker
