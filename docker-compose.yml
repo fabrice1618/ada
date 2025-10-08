@@ -3,6 +3,7 @@ services:
     build:
       context: ./build_docker
       dockerfile: Dockerfile
+    container_name: ada_web
     ports:
       - "8080:80"
     volumes:
@@ -19,6 +20,7 @@ services:
   db:
     image: mysql:8.0
     restart: always
+    container_name: ada_db
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}

@@ -1,4 +1,29 @@
 <?php
+
+$shortcode = ltrim($_SERVER['REQUEST_URI'], "/");
+// TODO verfiier le shortcode dans la base
+if ($shortcode != 'toto') {
+    http_response_code(404);
+    echo file_get_contents('parts/404.html');
+}
+
+
+if ( $_SERVER['REQUEST_METHOD'] == 'GET' &&  $_SERVER['REQUEST_URI'] == '/toto') {
+    echo file_get_contents('parts/formulaire.html');
+} 
+
+if ( $_SERVER['REQUEST_METHOD'] == 'GET' &&  $_SERVER['REQUEST_URI'] == '/maquette/resultat') {
+    echo file_get_contents('maquette/resultat.html');
+} 
+
+if ( $_SERVER['REQUEST_METHOD'] == 'POST' &&  $_SERVER['REQUEST_URI'] == '/formulaire') {
+    // traitement des données
+
+    // Redirection
+    header('Location: /maquette/resultat');
+    exit(); // Important : arrêter l'exécution du script
+} 
+//exit();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -14,6 +39,8 @@
     </style>
 </head>
 <body>
+
+    <br>
     <h1>ADA Application - Debug Information</h1>
 
     <div class="section">
