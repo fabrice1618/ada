@@ -7,10 +7,14 @@
  * Provides common functionality for rendering views and handling redirects.
  *
  * @package ADA Framework
- * @version 1.0 (Phase 4)
+ * @version 1.0 (Phase 5)
  */
 class Controller
 {
+    /**
+     * @var Request Current request object
+     */
+    protected Request $request;
     /**
      * Render a view template with data
      *
@@ -53,30 +57,30 @@ class Controller
     }
 
     /**
-     * Handle 404 Not Found errors
+     * Validate request data
      *
-     * @param string $message Error message
-     * @return void
+     * @param array $data Data to validate
+     * @param array $rules Validation rules
+     * @param array $messages Custom error messages
+     * @return array Validated data
+     * @throws Exception If validation fails (redirects with errors)
      */
-    protected function error404($message = 'Page not found')
+    protected function validate(array $data, array $rules, array $messages = []): array
     {
-        http_response_code(404);
-        echo "<h1>404 Not Found</h1>";
-        echo "<p>{$message}</p>";
-        exit();
-    }
+        $validator = Validator::make($data, $rules, $messages);
 
-    /**
-     * Handle 500 Internal Server errors
-     *
-     * @param string $message Error message
-     * @return void
-     */
-    protected function error500($message = 'Internal server error')
-    {
-        http_response_code(500);
-        echo "<h1>500 Internal Server Error</h1>";
-        echo "<p>{$message}</p>";
-        exit();
+        if (!$validator->validate()) {
+            // Flash errors and old input to session
+            Session::flash('_errors', $validator->errors());
+            Session::flash('_old_input', $data);
+
+            // Get the referring URL or fallback to /
+            $referrer = $_SERVER['HTTP_REFERER'] ?? '/';
+
+            // Return redirect response (will be caught by middleware pipeline)
+            throw new ValidationException($this->redirect($referrer));
+        }
+
+        return $data;
     }
 }

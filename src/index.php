@@ -25,6 +25,15 @@ require_once __DIR__ . '/core/Controller.php';
 require_once __DIR__ . '/core/Request.php';
 require_once __DIR__ . '/core/Response.php';
 require_once __DIR__ . '/core/Middleware.php';
+require_once __DIR__ . '/core/Validator.php';
+require_once __DIR__ . '/core/ValidationException.php';
+require_once __DIR__ . '/core/ErrorHandler.php';
+
+// Register error handler
+ErrorHandler::register(
+    ini_get('display_errors'),
+    __DIR__ . '/logs/error.log'
+);
 
 // Load routes configuration
 $routesConfig = require_once __DIR__ . '/config/routes.php';
@@ -92,7 +101,9 @@ $matchedRoute = matchRoute($routes, $requestUri, $requestMethod);
 
 // Handle 404 if no route matched
 if ($matchedRoute === null) {
-    $response = new Response("<h1>404 Not Found</h1><p>The page you are looking for does not exist.</p><p><strong>Request URI:</strong> {$requestUri}</p><p><strong>Request Method:</strong> {$requestMethod}</p>", 404);
+    require_once __DIR__ . '/app/Controllers/ErrorController.php';
+    $errorController = new ErrorController();
+    $response = $errorController->error404($request, $requestUri);
     $response->send();
     exit();
 }
