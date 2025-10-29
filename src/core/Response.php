@@ -218,4 +218,129 @@ class Response
         }
         return $this->with('old', $input);
     }
+
+    /**
+     * Create a redirect back response
+     *
+     * @return Response
+     */
+    public static function back(): Response
+    {
+        $referer = $_SERVER['HTTP_REFERER'] ?? '/';
+        return self::redirect($referer);
+    }
+
+    /**
+     * Create a download response
+     *
+     * @param string $filePath Path to file to download
+     * @param string|null $name Optional filename for download
+     * @return Response
+     */
+    public static function download(string $filePath, ?string $name = null): Response
+    {
+        if (!file_exists($filePath)) {
+            throw new Exception("File not found: {$filePath}");
+        }
+
+        $content = file_get_contents($filePath);
+        $fileName = $name ?? basename($filePath);
+
+        $response = new self($content, 200);
+        $response->setHeader('Content-Type', 'application/octet-stream');
+        $response->setHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+        $response->setHeader('Content-Length', (string) filesize($filePath));
+
+        return $response;
+    }
+
+    /**
+     * Create a file response (inline display)
+     *
+     * @param string $filePath Path to file
+     * @param string|null $mimeType Optional MIME type
+     * @return Response
+     */
+    public static function file(string $filePath, ?string $mimeType = null): Response
+    {
+        if (!file_exists($filePath)) {
+            throw new Exception("File not found: {$filePath}");
+        }
+
+        $content = file_get_contents($filePath);
+
+        if ($mimeType === null) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $filePath);
+            finfo_close($finfo);
+        }
+
+        $response = new self($content, 200);
+        $response->setHeader('Content-Type', $mimeType);
+        $response->setHeader('Content-Length', (string) filesize($filePath));
+
+        return $response;
+    }
+
+    /**
+     * Set multiple headers at once
+     *
+     * @param array $headers Associative array of headers
+     * @return $this
+     */
+    public function withHeaders(array $headers): self
+    {
+        foreach ($headers as $name => $value) {
+            $this->setHeader($name, $value);
+        }
+        return $this;
+    }
+
+    /**
+     * Set cookie
+     *
+     * @param string $name Cookie name
+     * @param string $value Cookie value
+     * @param int $expire Expiration time
+     * @param string $path Cookie path
+     * @param string $domain Cookie domain
+     * @param bool $secure Secure flag
+     * @param bool $httponly HttpOnly flag
+     * @return $this
+     */
+    public function withCookie(string $name, string $value, int $expire = 0, string $path = '/', string $domain = '', bool $secure = false, bool $httponly = true): self
+    {
+        setcookie($name, $value, $expire, $path, $domain, $secure, $httponly);
+        return $this;
+    }
+
+    /**
+     * Create a no content response (204)
+     *
+     * @return Response
+     */
+    public static function noContent(): Response
+    {
+        return new self('', 204);
+    }
+
+    /**
+     * Create a created response (201)
+     *
+     * @param mixed $data Optional data
+     * @param string|null $location Optional Location header
+     * @return Response
+     */
+    public static function created($data = null, ?string $location = null): Response
+    {
+        $response = $data !== null
+            ? self::json($data, 201)
+            : new self('', 201);
+
+        if ($location !== null) {
+            $response->setHeader('Location', $location);
+        }
+
+        return $response;
+    }
 }

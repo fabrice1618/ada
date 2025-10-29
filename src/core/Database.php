@@ -94,7 +94,11 @@ class Database
             $this->connection->exec("SET NAMES '{$this->config['charset']}' COLLATE '{$this->config['collation']}'");
         } catch (PDOException $e) {
             // Log the error (in production, don't expose details)
-            error_log("Database connection failed: " . $e->getMessage());
+            if (class_exists('Logger')) {
+                Logger::critical("Database connection failed: " . $e->getMessage(), ['exception' => $e]);
+            } else {
+                error_log("Database connection failed: " . $e->getMessage());
+            }
             throw new PDOException("Database connection failed. Please check configuration.");
         }
     }

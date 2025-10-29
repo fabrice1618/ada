@@ -313,6 +313,183 @@ class Model
     }
 
     // ===========================================
+    // QUERY BUILDER METHODS
+    // ===========================================
+
+    /**
+     * Query builder state
+     *
+     * @var array
+     */
+    protected array $queryBuilder = [
+        'select' => '*',
+        'where' => [],
+        'orderBy' => [],
+        'limit' => null,
+        'offset' => null,
+    ];
+
+    /**
+     * Select specific columns
+     *
+     * @param string|array $columns Columns to select
+     * @return self
+     */
+    public function select($columns): self
+    {
+        if (is_array($columns)) {
+            $this->queryBuilder['select'] = implode(', ', $columns);
+        } else {
+            $this->queryBuilder['select'] = $columns;
+        }
+        return $this;
+    }
+
+    /**
+     * Add WHERE condition
+     *
+     * @param string $field Field name
+     * @param string $operator Comparison operator
+     * @param mixed $value Value to compare
+     * @return self
+     */
+    public function whereCondition(string $field, string $operator, $value): self
+    {
+        $this->queryBuilder['where'][] = [
+            'field' => $field,
+            'operator' => $operator,
+            'value' => $value,
+        ];
+        return $this;
+    }
+
+    /**
+     * Add ORDER BY clause
+     *
+     * @param string $column Column to order by
+     * @param string $direction Direction (ASC or DESC)
+     * @return self
+     */
+    public function orderBy(string $column, string $direction = 'ASC'): self
+    {
+        $direction = strtoupper($direction);
+        if (!in_array($direction, ['ASC', 'DESC'])) {
+            $direction = 'ASC';
+        }
+        $this->queryBuilder['orderBy'][] = "{$column} {$direction}";
+        return $this;
+    }
+
+    /**
+     * Add LIMIT clause
+     *
+     * @param int $limit Number of records to return
+     * @return self
+     */
+    public function limit(int $limit): self
+    {
+        $this->queryBuilder['limit'] = $limit;
+        return $this;
+    }
+
+    /**
+     * Add OFFSET clause
+     *
+     * @param int $offset Number of records to skip
+     * @return self
+     */
+    public function offset(int $offset): self
+    {
+        $this->queryBuilder['offset'] = $offset;
+        return $this;
+    }
+
+    /**
+     * Execute the query builder and get results
+     *
+     * @return array
+     */
+    public function get(): array
+    {
+        $sql = $this->buildQuery();
+        $params = $this->buildParams();
+
+        $stmt = $this->query($sql, $params);
+        $results = $stmt ? $stmt->fetchAll() : [];
+
+        // Reset query builder
+        $this->resetQueryBuilder();
+
+        return $results;
+    }
+
+    /**
+     * Build SQL query from query builder state
+     *
+     * @return string
+     */
+    protected function buildQuery(): string
+    {
+        $sql = "SELECT {$this->queryBuilder['select']} FROM {$this->getTable()}";
+
+        // Add WHERE clauses
+        if (!empty($this->queryBuilder['where'])) {
+            $whereClauses = [];
+            foreach ($this->queryBuilder['where'] as $condition) {
+                $whereClauses[] = "{$condition['field']} {$condition['operator']} ?";
+            }
+            $sql .= " WHERE " . implode(' AND ', $whereClauses);
+        }
+
+        // Add ORDER BY
+        if (!empty($this->queryBuilder['orderBy'])) {
+            $sql .= " ORDER BY " . implode(', ', $this->queryBuilder['orderBy']);
+        }
+
+        // Add LIMIT
+        if ($this->queryBuilder['limit'] !== null) {
+            $sql .= " LIMIT {$this->queryBuilder['limit']}";
+        }
+
+        // Add OFFSET
+        if ($this->queryBuilder['offset'] !== null) {
+            $sql .= " OFFSET {$this->queryBuilder['offset']}";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * Build parameters array for prepared statement
+     *
+     * @return array
+     */
+    protected function buildParams(): array
+    {
+        $params = [];
+        foreach ($this->queryBuilder['where'] as $condition) {
+            $params[] = $condition['value'];
+        }
+        return $params;
+    }
+
+    /**
+     * Reset query builder state
+     *
+     * @return void
+     */
+    protected function resetQueryBuilder(): void
+    {
+        $this->queryBuilder = [
+            'select' => '*',
+            'where' => [],
+            'orderBy' => [],
+            'limit' => null,
+            'offset' => null,
+        ];
+    }
+
+    // ===========================================
     // HELPER METHODS
     // ===========================================
 

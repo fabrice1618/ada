@@ -28,6 +28,11 @@ class Request
     protected array $files;
 
     /**
+     * @var array Route parameters
+     */
+    protected array $routeParams = [];
+
+    /**
      * Constructor
      *
      * @param array $get GET parameters
@@ -298,5 +303,123 @@ class Request
     public function hasFile(string $key): bool
     {
         return isset($this->files[$key]) && $this->files[$key]['error'] === UPLOAD_ERR_OK;
+    }
+
+    /**
+     * Validate uploaded file
+     *
+     * @param string $key File input name
+     * @param int $maxSize Maximum file size in bytes (default 10MB)
+     * @param array $allowedTypes Allowed MIME types
+     * @param array $allowedExtensions Allowed file extensions
+     * @return array ['valid' => bool, 'error' => string|null]
+     */
+    public function validateFile(string $key, int $maxSize = 10485760, array $allowedTypes = [], array $allowedExtensions = []): array
+    {
+        if (!$this->hasFile($key)) {
+            return ['valid' => false, 'error' => 'No file uploaded'];
+        }
+
+        $file = $this->files[$key];
+
+        // Check file size
+        if ($file['size'] > $maxSize) {
+            return ['valid' => false, 'error' => 'File too large'];
+        }
+
+        // Check MIME type if specified
+        if (!empty($allowedTypes)) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            if (!in_array($mimeType, $allowedTypes)) {
+                return ['valid' => false, 'error' => 'Invalid file type'];
+            }
+        }
+
+        // Check file extension if specified
+        if (!empty($allowedExtensions)) {
+            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if (!in_array($extension, $allowedExtensions)) {
+                return ['valid' => false, 'error' => 'Invalid file extension'];
+            }
+        }
+
+        return ['valid' => true, 'error' => null];
+    }
+
+    /**
+     * Move uploaded file to destination
+     *
+     * @param string $key File input name
+     * @param string $destination Destination path
+     * @param string|null $newName Optional new filename
+     * @return array ['success' => bool, 'path' => string|null, 'error' => string|null]
+     */
+    public function moveFile(string $key, string $destination, ?string $newName = null): array
+    {
+        if (!$this->hasFile($key)) {
+            return ['success' => false, 'path' => null, 'error' => 'No file uploaded'];
+        }
+
+        $file = $this->files[$key];
+
+        // Ensure destination directory exists
+        if (!is_dir($destination)) {
+            if (!mkdir($destination, 0755, true)) {
+                return ['success' => false, 'path' => null, 'error' => 'Failed to create destination directory'];
+            }
+        }
+
+        // Generate filename
+        if ($newName === null) {
+            // Generate unique name with original extension
+            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $newName = uniqid() . '_' . time() . '.' . $extension;
+        }
+
+        $targetPath = rtrim($destination, '/') . '/' . $newName;
+
+        // Move file
+        if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+            return ['success' => true, 'path' => $targetPath, 'error' => null];
+        }
+
+        return ['success' => false, 'path' => null, 'error' => 'Failed to move uploaded file'];
+    }
+
+    /**
+     * Set a route parameter
+     *
+     * @param string $key Parameter name
+     * @param mixed $value Parameter value
+     * @return void
+     */
+    public function setRouteParam(string $key, $value): void
+    {
+        $this->routeParams[$key] = $value;
+    }
+
+    /**
+     * Get a route parameter
+     *
+     * @param string $key Parameter name
+     * @param mixed $default Default value
+     * @return mixed
+     */
+    public function routeParam(string $key, $default = null)
+    {
+        return $this->routeParams[$key] ?? $default;
+    }
+
+    /**
+     * Get all route parameters
+     *
+     * @return array
+     */
+    public function routeParams(): array
+    {
+        return $this->routeParams;
     }
 }

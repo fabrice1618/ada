@@ -153,11 +153,15 @@ class Security
      * Hash a password
      *
      * @param string $password Password to hash
+     * @param array $options Hashing options (algorithm, cost)
      * @return string
      */
-    public static function hashPassword(string $password): string
+    public static function hashPassword(string $password, array $options = []): string
     {
-        return password_hash($password, PASSWORD_BCRYPT);
+        $algorithm = $options['algorithm'] ?? PASSWORD_BCRYPT;
+        $cost = $options['cost'] ?? 12;
+
+        return password_hash($password, $algorithm, ['cost' => $cost]);
     }
 
     /**
@@ -170,5 +174,50 @@ class Security
     public static function verifyPassword(string $password, string $hash): bool
     {
         return password_verify($password, $hash);
+    }
+
+    /**
+     * Check if a password hash needs rehashing
+     *
+     * @param string $hash Password hash
+     * @param array $options Hashing options
+     * @return bool
+     */
+    public static function needsRehash(string $hash, array $options = []): bool
+    {
+        $algorithm = $options['algorithm'] ?? PASSWORD_BCRYPT;
+        $cost = $options['cost'] ?? 12;
+
+        return password_needs_rehash($hash, $algorithm, ['cost' => $cost]);
+    }
+
+    /**
+     * Generate a random token
+     *
+     * @param int $length Token length in bytes
+     * @return string
+     */
+    public static function generateToken(int $length = 32): string
+    {
+        return bin2hex(random_bytes($length));
+    }
+
+    /**
+     * Generate a secure random string
+     *
+     * @param int $length String length
+     * @return string
+     */
+    public static function randomString(int $length = 16): string
+    {
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[random_int(0, $charactersLength - 1)];
+        }
+
+        return $randomString;
     }
 }

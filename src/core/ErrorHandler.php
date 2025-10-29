@@ -154,16 +154,21 @@ class ErrorHandler
      */
     protected static function logError(string $message): void
     {
-        $timestamp = date('Y-m-d H:i:s');
-        $logMessage = "[{$timestamp}] {$message}\n";
+        // Use Logger if available, otherwise fallback to error_log
+        if (class_exists('Logger')) {
+            Logger::error($message);
+        } else {
+            $timestamp = date('Y-m-d H:i:s');
+            $logMessage = "[{$timestamp}] {$message}\n";
 
-        // Create logs directory if it doesn't exist
-        $logDir = dirname(self::$logFile);
-        if (!is_dir($logDir)) {
-            @mkdir($logDir, 0755, true);
+            // Create logs directory if it doesn't exist
+            $logDir = dirname(self::$logFile);
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0755, true);
+            }
+
+            @error_log($logMessage, 3, self::$logFile);
         }
-
-        @error_log($logMessage, 3, self::$logFile);
     }
 
     /**
@@ -175,15 +180,20 @@ class ErrorHandler
     protected static function logException(Throwable $exception): void
     {
         $message = sprintf(
-            "[%s] %s in %s:%d\nStack trace:\n%s",
+            "[%s] %s in %s:%d",
             get_class($exception),
             $exception->getMessage(),
             $exception->getFile(),
-            $exception->getLine(),
-            $exception->getTraceAsString()
+            $exception->getLine()
         );
 
-        self::logError($message);
+        // Use Logger if available with exception context
+        if (class_exists('Logger')) {
+            Logger::error($message, ['exception' => $exception]);
+        } else {
+            $message .= "\nStack trace:\n" . $exception->getTraceAsString();
+            self::logError($message);
+        }
     }
 
     /**
