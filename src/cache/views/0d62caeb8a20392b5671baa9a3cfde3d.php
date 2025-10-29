@@ -1,6 +1,6 @@
-@extends('layouts/main')
+<?php self::$extends = 'layouts/main'; ?>
 
-@section('content')
+<?php self::startSection('content'); ?>
 
 <div class="card">
     <h1><?php echo View::escape($heading); ?></h1>
@@ -44,4 +44,4 @@
     </ul>
 </div>
 
-@endsection
+<?php self::endSection(); ?>
