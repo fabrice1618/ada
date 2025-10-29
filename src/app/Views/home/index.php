@@ -23,15 +23,28 @@ ob_start();
 </div>
 
 <div class="card">
-    <h2>Quick Start</h2>
-    <p>This is Phase 1 of the ADA Framework implementation. The following features are now working:</p>
+    <h2>Database Statistics</h2>
+    <p>Live data from the database:</p>
     <ul class="feature-list">
-        <li>Front Controller routing (index.php)</li>
-        <li>Base Controller class with view rendering</li>
-        <li>Simple View engine with template loading</li>
-        <li>Route configuration system</li>
-        <li>Apache URL rewriting (.htaccess)</li>
-        <li>Basic error handling (404, 500)</li>
+        <li><strong>Users:</strong> <?php echo View::escape($stats['users']); ?></li>
+        <li><strong>Total Assignments:</strong> <?php echo View::escape($stats['devoirs']); ?></li>
+        <li><strong>Upcoming Assignments:</strong> <?php echo View::escape($stats['upcoming']); ?></li>
+    </ul>
+    <p style="margin-top: 1rem;">
+        <a href="/devoirs" style="color: #3498db; text-decoration: none; font-weight: bold;">View All Assignments →</a>
+    </p>
+</div>
+
+<div class="card">
+    <h2>Phase 2 Complete!</h2>
+    <p>The following database features are now working:</p>
+    <ul class="feature-list">
+        <li>Database connection with singleton pattern</li>
+        <li>Base Model class with CRUD operations</li>
+        <li>Prepared statements for SQL injection protection</li>
+        <li>Model inheritance (User, Devoir, Depose models)</li>
+        <li>Mass assignment protection with fillable fields</li>
+        <li>Query execution with error handling</li>
     </ul>
 </div>
 

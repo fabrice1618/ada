@@ -7,7 +7,7 @@
  * Provides common functionality for rendering views and handling redirects.
  *
  * @package ADA Framework
- * @version 1.0 (Phase 1)
+ * @version 1.0 (Phase 4)
  */
 class Controller
 {
@@ -16,15 +16,16 @@ class Controller
      *
      * @param string $template Template path (e.g., 'home/index')
      * @param array $data Data to pass to the template
-     * @return void
+     * @return Response|void Returns Response object (Phase 4+) or outputs directly (legacy)
      */
     protected function view($template, $data = [])
     {
         try {
-            echo View::render($template, $data);
+            // Phase 4: Return Response object for middleware pipeline
+            return Response::view($template, $data);
         } catch (Exception $e) {
             // Handle template rendering errors
-            $this->error500($e->getMessage());
+            return new Response("<h1>500 Internal Server Error</h1><p>{$e->getMessage()}</p>", 500);
         }
     }
 
@@ -32,12 +33,23 @@ class Controller
      * Redirect to a URL
      *
      * @param string $url URL to redirect to
-     * @return void
+     * @return Response
      */
     protected function redirect($url)
     {
-        header("Location: {$url}");
-        exit();
+        return Response::redirect($url);
+    }
+
+    /**
+     * Return a JSON response
+     *
+     * @param mixed $data Data to encode as JSON
+     * @param int $statusCode HTTP status code
+     * @return Response
+     */
+    protected function json($data, $statusCode = 200)
+    {
+        return Response::json($data, $statusCode);
     }
 
     /**

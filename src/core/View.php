@@ -47,6 +47,32 @@ class View
     }
 
     /**
+     * Process template syntax for auto-escaping
+     *
+     * Converts {{ $var }} to escaped output and {!! $var !!} to raw output
+     * Note: This is available but requires templates to use the syntax
+     * For Phase 3, we use View::escape() directly in templates
+     *
+     * @param string $content Template content
+     * @return string Processed content
+     */
+    private static function processTemplateSyntax(string $content): string
+    {
+        // Replace {!! $var !!} with raw output (unescaped)
+        // This must be done first to avoid double-processing
+        $content = preg_replace_callback('/\{!!\s*(.+?)\s*!!\}/', function ($matches) {
+            return '<?php echo ' . $matches[1] . '; ?>';
+        }, $content);
+
+        // Replace {{ $var }} with escaped output
+        $content = preg_replace_callback('/\{\{\s*(.+?)\s*\}\}/', function ($matches) {
+            return '<?php echo htmlspecialchars(' . $matches[1] . ', ENT_QUOTES, \'UTF-8\'); ?>';
+        }, $content);
+
+        return $content;
+    }
+
+    /**
      * Escape HTML output to prevent XSS
      *
      * @param string $value Value to escape
