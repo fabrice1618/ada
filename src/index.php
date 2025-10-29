@@ -1,66 +1,118 @@
 <?php
 
-$shortcode = ltrim($_SERVER['REQUEST_URI'], "/");
-// TODO verfiier le shortcode dans la base
-if ($shortcode != 'toto') {
-    http_response_code(404);
-    echo file_get_contents('parts/404.html');
+/**
+ * Front Controller / Router
+ *
+ * Single entry point for all HTTP requests.
+ * Routes requests to appropriate controllers and actions.
+ *
+ * @package ADA Framework
+ * @version 1.0 (Phase 1)
+ */
+
+// Error reporting (development mode)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Load core classes
+require_once __DIR__ . '/core/View.php';
+require_once __DIR__ . '/core/Controller.php';
+
+// Load routes configuration
+$routes = require_once __DIR__ . '/config/routes.php';
+
+// Get current request URI and method
+$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$requestMethod = $_SERVER['REQUEST_METHOD'];
+
+// Remove trailing slash (except for root)
+if ($requestUri !== '/' && substr($requestUri, -1) === '/') {
+    $requestUri = rtrim($requestUri, '/');
 }
 
+/**
+ * Match route against defined routes
+ *
+ * @param array $routes Array of route definitions
+ * @param string $requestUri Current request URI
+ * @param string $requestMethod Current request method
+ * @return array|null Matched route or null
+ */
+function matchRoute($routes, $requestUri, $requestMethod)
+{
+    foreach ($routes as $route) {
+        list($method, $pattern, $handler) = $route;
 
-if ( $_SERVER['REQUEST_METHOD'] == 'GET' &&  $_SERVER['REQUEST_URI'] == '/toto') {
-    echo file_get_contents('parts/formulaire.html');
-} 
+        // Check if HTTP method matches
+        if ($method !== $requestMethod) {
+            continue;
+        }
 
-if ( $_SERVER['REQUEST_METHOD'] == 'GET' &&  $_SERVER['REQUEST_URI'] == '/maquette/resultat') {
-    echo file_get_contents('maquette/resultat.html');
-} 
+        // Convert route pattern to regex
+        // For Phase 1, we only support exact matches
+        // Parameters like {id} will be added in future phases
+        $patternRegex = '#^' . $pattern . '$#';
 
-if ( $_SERVER['REQUEST_METHOD'] == 'POST' &&  $_SERVER['REQUEST_URI'] == '/formulaire') {
-    // traitement des données
+        // Check if URI matches pattern
+        if (preg_match($patternRegex, $requestUri)) {
+            return [
+                'handler' => $handler,
+                'params' => [] // No params in Phase 1
+            ];
+        }
+    }
 
-    // Redirection
-    header('Location: /maquette/resultat');
-    exit(); // Important : arrêter l'exécution du script
-} 
-//exit();
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ADA Application</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-        .section h2 { margin-top: 0; color: #333; }
-        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
-    </style>
-</head>
-<body>
+    return null;
+}
 
-    <br>
-    <h1>ADA Application - Debug Information</h1>
+// Try to match the route
+$matchedRoute = matchRoute($routes, $requestUri, $requestMethod);
 
-    <div class="section">
-        <h2>$_SERVER</h2>
-        <pre><?php print_r($_SERVER); ?></pre>
-    </div>
+// Handle 404 if no route matched
+if ($matchedRoute === null) {
+    http_response_code(404);
+    echo "<h1>404 Not Found</h1>";
+    echo "<p>The page you are looking for does not exist.</p>";
+    echo "<p><strong>Request URI:</strong> {$requestUri}</p>";
+    echo "<p><strong>Request Method:</strong> {$requestMethod}</p>";
+    exit();
+}
 
-    <div class="section">
-        <h2>$_COOKIE</h2>
-        <pre><?php print_r($_COOKIE); ?></pre>
-    </div>
+// Parse controller and action from handler
+list($controllerName, $actionName) = explode('@', $matchedRoute['handler']);
 
-    <div class="section">
-        <h2>$_GET</h2>
-        <pre><?php print_r($_GET); ?></pre>
-    </div>
+// Construct controller file path
+$controllerPath = __DIR__ . '/app/Controllers/' . $controllerName . '.php';
 
-    <div class="section">
-        <h2>$_POST</h2>
-        <pre><?php print_r($_POST); ?></pre>
-    </div>
-</body>
-</html>
+// Check if controller file exists
+if (!file_exists($controllerPath)) {
+    http_response_code(500);
+    echo "<h1>500 Internal Server Error</h1>";
+    echo "<p>Controller not found: {$controllerName}</p>";
+    exit();
+}
+
+// Load the controller
+require_once $controllerPath;
+
+// Check if controller class exists
+if (!class_exists($controllerName)) {
+    http_response_code(500);
+    echo "<h1>500 Internal Server Error</h1>";
+    echo "<p>Controller class not found: {$controllerName}</p>";
+    exit();
+}
+
+// Instantiate the controller
+$controller = new $controllerName();
+
+// Check if action method exists
+if (!method_exists($controller, $actionName)) {
+    http_response_code(500);
+    echo "<h1>500 Internal Server Error</h1>";
+    echo "<p>Action method not found: {$controllerName}@{$actionName}</p>";
+    exit();
+}
+
+// Call the action method with parameters (empty for Phase 1)
+call_user_func_array([$controller, $actionName], $matchedRoute['params']);
