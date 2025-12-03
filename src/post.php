@@ -4,10 +4,11 @@ date_default_timezone_set('Europe/Paris');
 
 /**
  * Établit la connexion à la base de données
+ * TO DO parametrer les users les MDPS
  */
 function connectToDatabase() {
     try {
-        $pdo = new PDO('mysql:host=localhost;dbname=ADA;charset=utf8', 'ada', 'ada', [
+        $pdo = new PDO('mysql:host=db;dbname=ada;charset=utf8', 'ada', 'ada', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         ]);
         return $pdo;
@@ -17,12 +18,12 @@ function connectToDatabase() {
 }
 
 /**
- * Valide et nettoie les données personnelles du formulaire
+ * Valide et nettoie les données personnelles du formulaire 
+ * TO DO gerer XSS faille 
  */
 function validatePersonalData() {
     $prenom = trim($_POST['prenom'] ?? '');
     $nom = trim($_POST['nom'] ?? '');
-    $email = trim($_POST['email'] ?? '');
     
     // Validation des champs obligatoires
     if (empty($prenom)) {
@@ -31,19 +32,10 @@ function validatePersonalData() {
     if (empty($nom)) {
         throw new Exception("Le nom est obligatoire.");
     }
-    if (empty($email)) {
-        throw new Exception("L'email est obligatoire.");
-    }
-    
-    // Validation format email
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        throw new Exception("L'email n'est pas valide.");
-    }
     
     return [
         'prenom' => $prenom,
         'nom' => $nom,
-        'email' => $email,
         'date_depot' => date('Y-m-d H:i:s')
     ];
 }
@@ -122,20 +114,18 @@ function processUploadedFile() {
  */
 function saveToDatabase($pdo, $data) {
     $stmt = $pdo->prepare("INSERT INTO deposes 
-                          (prenom, nom, email, date_depot, url, nomfichier_original, nomfichier_stockage, taille_fichier, type_fichier)
+                          (prenom, nom, datedepot, url, nomfichieroriginal, nomfichierstockage, iddevoirs)
                           VALUES 
-                          (:prenom, :nom, :email, :date_depot, :url, :nomfichier_original, :nomfichier_stockage, :taille_fichier, :type_fichier)");
+                          (:prenom, :nom, :datedepot, :url, :nomfichieroriginal, :nomfichierstockage, :iddevoirs)");
     
     $stmt->execute([
         ':prenom' => $data['prenom'],
         ':nom' => $data['nom'],
-        ':email' => $data['email'],
-        ':date_depot' => $data['date_depot'],
+        ':datedepot' => $data['date_depot'],
         ':url' => $data['url'],
-        ':nomfichier_original' => $data['nomfichier_original'],
-        ':nomfichier_stockage' => $data['nomfichier_stockage'],
-        ':taille_fichier' => $data['taille_fichier'],
-        ':type_fichier' => $data['type_fichier']
+        ':nomfichieroriginal' => $data['nomfichier_original'],
+        ':nomfichierstockage' => $data['nomfichier_stockage'],
+        ':iddevoirs' => $data['iddevoirs']
     ]);
     
     return $pdo->lastInsertId(); // Retourne l'ID du nouveau dépôt
@@ -165,8 +155,7 @@ function processFormSubmission() {
             'url' => $url,
             'nomfichier_original' => $fileData['nomfichier_original'],
             'nomfichier_stockage' => $fileData['nomfichier_stockage'],
-            'taille_fichier' => $fileData['taille_fichier'],
-            'type_fichier' => $fileData['type_fichier']
+            'iddevoirs' => 1
         ]);
         
         // ÉTAPE 6: Connexion à la base de données et sauvegarde
@@ -174,7 +163,8 @@ function processFormSubmission() {
         $newId = saveToDatabase($pdo, $completeData);
         
         // ÉTAPE 7: Confirmation de succès
-        echo " Données enregistrées avec succès! ID: " . $newId;
+        header('Location: /maquette/resultat?success=1&id=' . $newId);
+        exit();
         
     } catch (Exception $e) {
         echo " Erreur : " . $e->getMessage();

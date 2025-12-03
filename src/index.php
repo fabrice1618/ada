@@ -2,9 +2,14 @@
 
 $shortcode = ltrim($_SERVER['REQUEST_URI'], "/");
 // TODO verfiier le shortcode dans la base
-if ($shortcode != 'toto') {
+if ($shortcode != 'toto' && $_SERVER['REQUEST_URI'] != '/post.php') {
     http_response_code(404);
     echo file_get_contents('parts/404.html');
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_SERVER['REQUEST_URI'] == '/post.php') {
+    require 'post.php';
+    exit();
 }
 
 
@@ -16,13 +21,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'GET' &&  $_SERVER['REQUEST_URI'] == '/maquet
     echo file_get_contents('maquette/resultat.html');
 } 
 
-if ( $_SERVER['REQUEST_METHOD'] == 'POST' &&  $_SERVER['REQUEST_URI'] == '/formulaire') {
-    // traitement des données
 
-    // Redirection
-    header('Location: /maquette/resultat');
-    exit(); // Important : arrêter l'exécution du script
-} 
 //exit();
 ?>
 <!DOCTYPE html>

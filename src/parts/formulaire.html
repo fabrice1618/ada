@@ -12,13 +12,15 @@
     <div class="container">
         <h1 class="mb-4">Déposer votre DM</h1>
 
-        <form class="mb-3" method="POST" action="/formulaire">
+        <form class="mb-3" method="POST" action="/post.php">
             <!-- Nom + prénom -->
             <div class="input-group mb-3">
                 <span class="input-group-text">Nom & Prénom</span>
-                <input type="text" name="prenom" aria-label="First name" class="form-control w-25" placeholder="Prénom">
-                <input type="text" name="nom" aria-label="Last name" class="form-control w-25" placeholder="Nom">
+                <input type="text" name="prenom" aria-label="First name" class="form-control w-25" placeholder="Prénom" required>
+                <input type="text" name="nom" aria-label="Last name" class="form-control w-25" placeholder="Nom" required>
             </div>
+
+
                 
             <!-- Choix entre fichier ou GitHub -->
             <div class="mb-3">
@@ -33,13 +35,13 @@
             <!-- Upload fichier -->
             <div class="input-group mb-3 d-none" id="file-field">
                 <label class="input-group-text" for="inputGroupFile01">Upload</label>
-                <input type="file" class="form-control" id="inputGroupFile01">
+                <input type="file" class="form-control" id="inputGroupFile01" name="fichier">
             </div>
 
             <!-- Champ GitHub -->
             <div class="mb-3 d-none" id="github-field">
                 <label for="github-url" class="form-label">Lien du dépôt GitHub</label>
-                <input type="url" class="form-control" id="github-url" placeholder="https://github.com/moncompte/monrepo">
+                <input type="url" class="form-control" id="github-url" name="url" placeholder="https://github.com/moncompte/monrepo">
             </div>
 
             <!-- Bouton -->
