@@ -1,3 +1,5 @@
 .claude/
 filestore/*.zip
 .env
+src/cache/views/*
+src/logs/error.log

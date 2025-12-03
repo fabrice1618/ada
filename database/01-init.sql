@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS deposes (
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- Grant additional privileges to ada user
-GRANT ALL PRIVILEGES ON ada.* TO 'ada'@'%';
+-- Create ada_user and grant privileges
+CREATE USER IF NOT EXISTS 'ada_user'@'%' IDENTIFIED BY 'ada_password';
+GRANT ALL PRIVILEGES ON ada.* TO 'ada_user'@'%';
 FLUSH PRIVILEGES;

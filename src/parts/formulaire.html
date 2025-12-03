@@ -1,66 +1,65 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-    <meta charset="UTF-8">
-    <title>Formulaire DM</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Formulaire DM</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
 <body class="p-5">
 
+  <h1 class="mb-5 text-center">Déposez votre DM</h1>
+
+   <form class="mb-3" action="resultat.php" method="post" enctype="multipart/form-data">
+
     <div class="container">
-        <h1 class="mb-4">Déposer votre DM</h1>
+    <div class="row justify-content-center">
+      <div class="col-md-7">
 
-        <form class="mb-3" method="POST" action="/post.php">
-            <!-- Nom + prénom -->
-            <div class="input-group mb-3">
-                <span class="input-group-text">Nom & Prénom</span>
-                <input type="text" name="prenom" aria-label="First name" class="form-control w-25" placeholder="Prénom" required>
-                <input type="text" name="nom" aria-label="Last name" class="form-control w-25" placeholder="Nom" required>
-            </div>
+        <!-- Nom + prénom -->
+        <div class="input-group mb-3">
+          <span class="input-group-text">NOM + Prénom</span>
+          <input type="text" aria-label="Nom" class="form-control" placeholder="NOM" name="nom" required style="max-width: 150px;">
+          <input type="text" aria-label="Prénom" class="form-control" placeholder="Prénom" name="prenom" required style="max-width: 150px;">
+        </div>
 
+        <!-- Choix entre fichier ou GitHub -->
+        <div class="mb-3">
+          <label for="choice" class="form-label">Choisissez le mode de dépôt :</label>
+          <select class="form-select" id="choice" name="choice" onchange="toggleInput()" required>
+            <option selected disabled value="">-- Sélectionnez une option --</option>
+            <option value="file">Déposer un fichier</option>
+            <option value="github">Donner un lien GitHub</option>
+          </select>
+        </div>
 
-                
-            <!-- Choix entre fichier ou GitHub -->
-            <div class="mb-3">
-                <label for="choice" class="form-label">Choisissez le mode de dépôt :</label>
-                <select class="form-select" id="choice" onchange="toggleInput()">
-                    <option selected disabled>-- Sélectionnez une option --</option>
-                    <option value="file">Déposer un fichier</option>
-                    <option value="github">Donner un lien GitHub</option>
-                </select>
-            </div>
+        <!-- Upload fichier -->
+        <div class="input-group mb-3 d-none" id="file-field">
+          <label class="input-group-text" for="inputGroupFile01">Dépôt</label>
+          <input type="file" class="form-control" id="inputGroupFile01" name="upload" accept=".zip,.rar,.pdf,.doc,.docx">
+        </div>
 
-            <!-- Upload fichier -->
-            <div class="input-group mb-3 d-none" id="file-field">
-                <label class="input-group-text" for="inputGroupFile01">Upload</label>
-                <input type="file" class="form-control" id="inputGroupFile01" name="fichier">
-            </div>
+        <!-- Champ GitHub -->
+        <div class="mb-3 d-none" id="github-field">
+          <label for="github-url" class="form-label">Lien du dépôt GitHub</label>
+          <input type="url" class="form-control" id="github-url" name="github_url" placeholder="https://github.com/moncompte/monrepo">
+        </div>
 
-            <!-- Champ GitHub -->
-            <div class="mb-3 d-none" id="github-field">
-                <label for="github-url" class="form-label">Lien du dépôt GitHub</label>
-                <input type="url" class="form-control" id="github-url" name="url" placeholder="https://github.com/moncompte/monrepo">
-            </div>
-
-            <!-- Bouton -->
-            <button type="submit" class="btn btn-primary">Envoyer</button>
-
-        </form>
-
+        <!-- Bouton -->
+        <button type="submit" class="btn btn-primary">Confirmer</button>
+      </div>
     </div>
+    </div>
+  </form>
 
-
-
-    <script>
-        function toggleInput() {
-            const choice = document.getElementById("choice").value;
-            document.getElementById("file-field").classList.toggle("d-none", choice !== "file");
-            document.getElementById("github-field").classList.toggle("d-none", choice !== "github");
-        }
-    </script>
+  <script>
+    function toggleInput() {
+      const choice = document.getElementById("choice").value;
+      document.getElementById("file-field").classList.toggle("d-none", choice !== "file");
+      document.getElementById("github-field").classList.toggle("d-none", choice !== "github");
+    }
+  </script>
 
 </body>
-
 </html>
+
+
