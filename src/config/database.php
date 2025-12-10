@@ -9,10 +9,10 @@
 
 return [
     // Database connection settings
-    'host' => 'ada_db', // Docker service name
-    'database' => getenv('DB_NAME') ?: 'ada',
-    'username' => getenv('DB_USER') ?: 'ada',
-    'password' => getenv('DB_PASS') ?: 'ada_pwd',
+    'host' => getenv('DB_HOST'), // default to docker service name
+    'database' => getenv('DB_NAME'),
+    'username' => getenv('DB_USER'),
+    'password' => getenv('DB_PASS'),
     'charset' => 'utf8mb4',
     'collation' => 'utf8mb4_unicode_ci',
 
