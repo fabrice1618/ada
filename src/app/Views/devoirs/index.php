@@ -65,5 +65,5 @@ ob_start();
 <?php
 // Get content and include in layout
 $content = ob_get_clean();
-include __DIR__ . '/../layouts/main.php';
+include __DIR__ . '/../../app/Views/layouts/main.php';
 ?>

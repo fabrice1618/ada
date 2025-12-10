@@ -37,6 +37,10 @@ return [
         ['GET', '/devoirs/show', 'DevoirController@show'],
         ['GET', '/devoirs/upcoming', 'DevoirController@upcoming'],
 
+        // Depose routes (submission form with dynamic shortcode)
+        ['GET', '/devoir/{shortcode}', 'DevoirController@deposeForm'],
+        ['POST', '/devoir/{shortcode}', 'DevoirController@deposeSubmit'],
+
         // Test route with parameter (for future implementation)
         // ['GET', '/hello/{name}', 'HomeController@hello'],
     ],

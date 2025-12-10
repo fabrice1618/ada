@@ -75,15 +75,32 @@ function matchRoute($routes, $requestUri, $requestMethod)
         }
 
         // Convert route pattern to regex
-        // For Phase 1, we only support exact matches
-        // Parameters like {id} will be added in future phases
-        $patternRegex = '#^' . $pattern . '$#';
+        // Support for parameters like {id}, {shortcode}, etc.
+        $params = [];
+        $paramNames = [];
+        
+        // Extract parameter names from pattern
+        if (preg_match_all('/{([a-zA-Z_][a-zA-Z0-9_]*)}/', $pattern, $matches)) {
+            $paramNames = $matches[1];
+            // Replace {param} with regex capture group
+            $patternRegex = preg_replace('/{[a-zA-Z_][a-zA-Z0-9_]*}/', '([^/]+)', $pattern);
+            $patternRegex = '#^' . $patternRegex . '$#';
+        } else {
+            // No parameters, exact match
+            $patternRegex = '#^' . $pattern . '$#';
+        }
 
         // Check if URI matches pattern
-        if (preg_match($patternRegex, $requestUri)) {
+        if (preg_match($patternRegex, $requestUri, $matches)) {
+            // Extract parameter values
+            array_shift($matches); // Remove full match
+            foreach ($paramNames as $index => $name) {
+                $params[$name] = $matches[$index] ?? null;
+            }
+            
             return [
                 'handler' => $handler,
-                'params' => [], // No params in Phase 1
+                'params' => $params,
                 'middleware' => $routeMiddleware
             ];
         }

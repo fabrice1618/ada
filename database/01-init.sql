@@ -1,6 +1,7 @@
 -- ADA Database Initialization Script
 -- This script is automatically executed when the MySQL container starts
 
+CREATE DATABASE IF NOT EXISTS ada;
 USE ada;
 
 -- Create a sample table for demonstration
@@ -41,6 +42,6 @@ CREATE TABLE IF NOT EXISTS deposes (
 ) ENGINE=InnoDB;
 
 -- Create ada_user and grant privileges
-CREATE USER IF NOT EXISTS 'ada_user'@'%' IDENTIFIED BY 'ada_password';
-GRANT ALL PRIVILEGES ON ada.* TO 'ada_user'@'%';
+CREATE USER IF NOT EXISTS 'ada'@'%' IDENTIFIED BY 'ada_pwd';
+GRANT ALL PRIVILEGES ON ada.* TO 'ada'@'%';
 FLUSH PRIVILEGES;
