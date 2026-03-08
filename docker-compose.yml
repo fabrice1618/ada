@@ -1,0 +1,92 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./logs/traefik:/var/log/traefik
+    networks:
+      - frontend
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  auth:
+    build: ./auth
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DEBUG=${DEBUG}
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./logs/auth:/var/log/auth
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/static`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls=true"
+      - "traefik.http.services.auth.loadbalancer.server.port=8000"
+      - "traefik.docker.network=ada_frontend"
+      # Redirection / → /auth/login/
+      - "traefik.http.routers.root.rule=Path(`/`)"
+      - "traefik.http.routers.root.entrypoints=websecure"
+      - "traefik.http.routers.root.tls=true"
+      - "traefik.http.routers.root.middlewares=root-redirect"
+      - "traefik.http.routers.root.service=auth"
+      - "traefik.http.middlewares.root-redirect.redirectregex.regex=^https?://([^/]+)/?$$"
+      - "traefik.http.middlewares.root-redirect.redirectregex.replacement=https://$${1}/auth/login/"
+    restart: unless-stopped
+
+  nginx:
+    build: ./nginx
+    volumes:
+      - ./content:/usr/share/nginx/html:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=PathPrefix(`/cours`)"
+      - "traefik.http.routers.nginx.entrypoints=websecure"
+      - "traefik.http.routers.nginx.tls=true"
+      - "traefik.http.routers.nginx.middlewares=auth-verify"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.auth-verify.forwardauth.address=http://auth:8000/auth/verify/"
+      - "traefik.http.middlewares.auth-verify.forwardauth.trustForwardHeader=true"
+    restart: unless-stopped
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db_data:

@@ -1,0 +1,9 @@
+.env
+db_data/
+uploads/
+logs/
+__pycache__/
+*.pyc
+traefik_certs/
+*.egg-info/
+.venv/
