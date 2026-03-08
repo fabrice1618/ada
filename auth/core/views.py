@@ -22,7 +22,9 @@ def _get_client_ip(request):
 @require_http_methods(["GET", "POST"])
 def connexion(request):
     if request.user.is_authenticated:
-        return redirect('/admin/')
+        if request.user.role == 'admin':
+            return redirect('gestion')
+        return redirect('profil')
 
     if request.method == 'POST':
         form = FormulaireConnexion(request.POST)
@@ -38,7 +40,11 @@ def connexion(request):
                     extra={'user': user.id, 'classe': '-', 'ip': ip,
                            'method': 'POST', 'path': '/auth/login/', 'status': 200}
                 )
-                next_url = request.GET.get('next', '/admin/')
+                if user.role == 'admin':
+                    default_url = '/admin/'
+                else:
+                    default_url = '/auth/profil/'
+                next_url = request.GET.get('next', default_url)
                 return redirect(next_url)
             else:
                 form.add_error(None, "Email ou mot de passe incorrect.")

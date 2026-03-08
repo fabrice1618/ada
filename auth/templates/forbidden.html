@@ -1,41 +1,12 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accès refusé — Plateforme Étudiante</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .card {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 500px;
-        }
-        h1 { color: #c33; margin-bottom: 1rem; }
-        p { color: #666; margin-bottom: 1.5rem; }
-        a {
-            color: #4a90d9;
-            text-decoration: none;
-        }
-        a:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>403 — Accès refusé</h1>
-        <p>Vous n'avez pas accès à cette ressource, ou le créneau horaire est fermé.</p>
-        <a href="/auth/login/">Retour à la connexion</a>
+{% extends "base.html" %}
+{% block title %}Accès refusé — Plateforme Étudiante{% endblock %}
+
+{% block content_anonymous %}
+<div class="card border-0 shadow-sm text-center" style="max-width: 500px; width: 100%;">
+    <div class="card-body p-4">
+        <h2 class="text-danger mb-3">403 — Accès refusé</h2>
+        <p class="text-muted">Vous n'avez pas accès à cette ressource, ou le créneau horaire est fermé.</p>
+        <a href="{% url 'connexion' %}" class="btn btn-outline-primary">Retour à la connexion</a>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

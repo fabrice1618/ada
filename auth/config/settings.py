@@ -15,7 +15,6 @@ DOMAIN = os.environ.get('DOMAIN', 'localhost')
 ALLOWED_HOSTS = [DOMAIN, 'localhost', '127.0.0.1', 'auth']
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',

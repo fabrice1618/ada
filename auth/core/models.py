@@ -22,6 +22,8 @@ class UtilisateurManager(BaseUserManager):
 class Classe(models.Model):
     nom = models.CharField(max_length=100)
     annee = models.CharField(max_length=20)
+    debut_autorisation = models.DateField(null=True, blank=True, verbose_name="Début autorisation login")
+    fin_autorisation = models.DateField(null=True, blank=True, verbose_name="Fin autorisation login")
 
     class Meta:
         db_table = 'core_classe'
