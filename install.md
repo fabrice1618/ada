@@ -180,6 +180,23 @@ docker compose exec auth python manage.py makemigrations
 docker compose exec auth python manage.py migrate
 ```
 
+### Archiver une classe (fin d'année)
+
+Exporte tout ce qui concerne la classe (étudiants, devoirs, groupes, rendus, fichiers ; aucun mot de passe), puis la supprime de la prod. Les étudiants inscrits dans une autre classe gardent leur compte ; enseignants et admins ne sont jamais supprimés.
+
+Depuis le navigateur : page de la classe (`/admin/classes/<id>/`), « Exporter l'archive », puis « Supprimer la classe ».
+
+Sur le serveur (grosse classe, ou sans navigateur) :
+
+```bash
+docker compose exec -T auth python manage.py archiver_classe            # liste les classes et leur id
+docker compose exec -T auth python manage.py archiver_classe 3 > ada-classe-3.zip
+unzip -l ada-classe-3.zip                                                # ouvrir, contrôler, mettre à l'abri
+docker compose exec -T auth python manage.py archiver_classe 3 --supprimer - < ada-classe-3.zip
+```
+
+La suppression revérifie l'archive contre la base : elle est refusée si l'archive est abîmée, d'une autre classe, ou si les données ont changé depuis l'export (un rendu déposé entre-temps : réexporter).
+
 ### Sauvegarder la base de données
 
 ```bash

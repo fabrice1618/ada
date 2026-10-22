@@ -1,14 +1,18 @@
 import logging
 import secrets
 import string
+import tempfile
 from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
+from django.http import FileResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.http import require_GET, require_POST
 
+from core import archivage
 from core.models import Classe, Utilisateur
 
 logger = logging.getLogger('auth')
@@ -173,11 +177,72 @@ def _traiter_import(request):
 def detail_classe(request, classe_id):
     classe = get_object_or_404(Classe, id=classe_id)
     etudiants = classe.utilisateurs.filter(role='etudiant').order_by('nom_complet')
+    donnees = archivage.donnees_classe(classe)
     return render(request, 'detail_classe.html', {
         'active_page': 'gestion',
         'classe': classe,
         'etudiants': etudiants,
+        'bilan': archivage.bilan(donnees),
+        'empreinte': archivage.calculer_empreinte(donnees),
     })
+
+
+# ── Archivage d'une classe : export, puis suppression ──────────
+
+@admin_requis
+@require_GET
+def archive_classe(request, classe_id):
+    classe = get_object_or_404(Classe, id=classe_id)
+    temporaire = tempfile.NamedTemporaryFile(suffix='.zip')
+    try:
+        resultat = archivage.ecrire_archive(classe, temporaire)
+        temporaire.seek(0)
+        archivage.verifier_archive(classe, temporaire)
+    except Exception:
+        temporaire.close()
+        raise
+    temporaire.seek(0)
+    logger.info(
+        "Classe exportée id=%s empreinte=%s fichiers=%s manquants=%s par=%s",
+        classe.id, resultat['empreinte'][:8], resultat['fichiers'], resultat['manquants'],
+        request.user.id,
+    )
+    return FileResponse(
+        temporaire,
+        as_attachment=True,
+        filename=archivage.nom_archive(classe, resultat['empreinte']),
+        content_type='application/zip',
+    )
+
+
+@admin_requis
+@require_POST
+def supprimer_classe(request, classe_id):
+    classe = get_object_or_404(Classe, id=classe_id)
+    if request.POST.get('confirmation', '').strip() != classe.nom or 'archive_verifiee' not in request.POST:
+        messages.error(request, "Confirmation incorrecte : tapez le nom exact de la classe et cochez la case.")
+        return redirect('detail_classe', classe_id=classe.id)
+    empreinte = archivage.calculer_empreinte(archivage.donnees_classe(classe))
+    if request.POST.get('empreinte') != empreinte:
+        messages.error(
+            request,
+            "Les données de la classe ont changé depuis l'affichage de la page : exportez à nouveau l'archive.",
+        )
+        return redirect('detail_classe', classe_id=classe.id)
+    nom = str(classe)
+    resultat = archivage.supprimer_classe(classe)
+    messages.success(
+        request,
+        f"Classe « {nom} » supprimée : {resultat['devoirs']} devoirs, {resultat['fichiers']} fichiers, "
+        f"{resultat['etudiants_supprimes']} comptes supprimés, "
+        f"{resultat['etudiants_conserves']} conservés (inscrits dans une autre classe).",
+    )
+    logger.info(
+        "Classe supprimée id=%s nom=%s empreinte=%s devoirs=%s fichiers=%s comptes_supprimes=%s par=%s",
+        classe_id, nom, empreinte[:8], resultat['devoirs'], resultat['fichiers'],
+        resultat['etudiants_supprimes'], request.user.id,
+    )
+    return redirect('gestion')
 
 
 # ── Profil utilisateur (changement de mot de passe) ────────────

@@ -46,4 +46,38 @@
     <p>Aucun étudiant dans cette classe.</p>
 </div>
 {% endif %}
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3"><i class="bi bi-archive"></i> Archiver la classe</h5>
+        <p class="mb-2">
+            L'archive contient les étudiants, les devoirs, les groupes, les rendus et leurs fichiers
+            ({{ bilan.devoirs }} devoir{{ bilan.devoirs|pluralize }}, {{ bilan.rendus }} rendu{{ bilan.rendus|pluralize }},
+            {{ bilan.fichiers }} fichier{{ bilan.fichiers|pluralize }}, {{ bilan.octets|filesizeformat }}), sans mot de passe.
+        </p>
+        <a class="btn btn-outline-primary mb-4" href="{% url 'classe_archive' classe.id %}">
+            <i class="bi bi-download"></i> 1. Exporter l'archive
+        </a>
+
+        <form method="post" action="{% url 'classe_supprimer' classe.id %}" class="border-top pt-3">
+            {% csrf_token %}
+            <input type="hidden" name="empreinte" value="{{ empreinte }}">
+            <p class="mb-2">
+                <strong>2. Supprimer la classe</strong> — définitif : devoirs, groupes, rendus et fichiers,
+                {{ bilan.etudiants_supprimes }} compte{{ bilan.etudiants_supprimes|pluralize }} étudiant{{ bilan.etudiants_supprimes|pluralize }} sans autre classe.
+                {% if bilan.etudiants_conserves %}{{ bilan.etudiants_conserves }} étudiant{{ bilan.etudiants_conserves|pluralize }} inscrit{{ bilan.etudiants_conserves|pluralize }} ailleurs garde{{ bilan.etudiants_conserves|pluralize:"nt" }} son compte.{% endif %}
+            </p>
+            <p class="text-muted small">Empreinte des données : <code>{{ empreinte|slice:":8" }}</code> — elle figure dans le nom de l'archive.</p>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="archive_verifiee" name="archive_verifiee" required>
+                <label class="form-check-label" for="archive_verifiee">J'ai téléchargé et ouvert l'archive.</label>
+            </div>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control" name="confirmation" required autocomplete="off"
+                       placeholder="Tapez « {{ classe.nom }} » pour confirmer">
+                <button type="submit" class="btn btn-danger text-nowrap">Supprimer la classe</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

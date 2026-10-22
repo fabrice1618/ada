@@ -30,6 +30,10 @@ docker compose exec auth python manage.py createsuperuser
 # Tests du dépôt de fichiers (SQLite, sans Docker)
 cd auth && python manage.py test core --settings=config.settings_test
 
+# Archiver puis supprimer une classe (core/archivage.py)
+docker compose exec -T auth python manage.py archiver_classe 3 > ada-classe-3.zip
+docker compose exec -T auth python manage.py archiver_classe 3 --supprimer - < ada-classe-3.zip
+
 # Logs applicatifs (stdout : syslog d'argos, tag ada)
 tail -f logs/auth/app.log
 
