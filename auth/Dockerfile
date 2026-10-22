@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /var/log/auth
+RUN mkdir -p /var/log/auth /uploads
 
 RUN DJANGO_SECRET_KEY=build python manage.py collectstatic --noinput
 

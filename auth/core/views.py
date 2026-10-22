@@ -2,14 +2,40 @@ import logging
 from datetime import datetime
 
 from django.contrib.auth import authenticate, login, logout
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
 from core.forms import FormulaireConnexion
 from core.models import Creneau
 
 logger = logging.getLogger('auth')
+
+
+def destination(user):
+    if user.role == 'admin':
+        return 'gestion'
+    if user.role == 'enseignant':
+        return 'devoirs_gestion'
+    return 'devoirs_liste'
+
+
+def _redirige_apres_connexion(request, user):
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect(destination(user))
+
+
+def accueil(request):
+    if not request.user.is_authenticated:
+        return redirect('connexion')
+    return redirect(destination(request.user))
 
 
 def _get_client_ip(request):
@@ -22,9 +48,7 @@ def _get_client_ip(request):
 @require_http_methods(["GET", "POST"])
 def connexion(request):
     if request.user.is_authenticated:
-        if request.user.role == 'admin':
-            return redirect('gestion')
-        return redirect('profil')
+        return redirect(destination(request.user))
 
     if request.method == 'POST':
         form = FormulaireConnexion(request.POST)
@@ -40,12 +64,7 @@ def connexion(request):
                     extra={'user': user.id, 'classe': '-', 'ip': ip,
                            'method': 'POST', 'path': '/auth/login/', 'status': 200}
                 )
-                if user.role == 'admin':
-                    default_url = '/admin/'
-                else:
-                    default_url = '/auth/profil/'
-                next_url = request.GET.get('next', default_url)
-                return redirect(next_url)
+                return _redirige_apres_connexion(request, user)
             else:
                 form.add_error(None, "Email ou mot de passe incorrect.")
                 logger.warning(

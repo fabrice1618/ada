@@ -1,19 +1,14 @@
-services:
-  traefik:
-    image: traefik:v3.0
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./logs/traefik:/var/log/traefik
-    networks:
-      - frontend
-    restart: unless-stopped
+# Tenant d'argos. Lancer avec ./start.sh : le reseau reverse-proxy-net et
+# logs_rsyslog doivent deja tourner. Le proxy route le conteneur ada-auth
+# (port 8000). La declaration du domaine (ada.mips.science, ada.localhost,
+# body_size=20m) se fait dans reverse_proxy, pas ici.
 
+name: ada
+
+services:
   mysql:
     image: mysql:8.0
+    container_name: ada-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -29,64 +24,64 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    labels:
+      argos.monitor: "true"
 
   auth:
     build: ./auth
+    container_name: ada-auth
     environment:
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DEBUG=${DEBUG}
-      - DOMAIN=${DOMAIN}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DEBUG: ${DEBUG:-0}
+      DOMAIN: ${DOMAIN:-ada.localhost}
+      ALLOWED_EXTENSIONS: ${ALLOWED_EXTENSIONS:-pdf,zip,tar.gz,py,java,c,cpp,txt}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+      MAX_UPLOAD_FILES: ${MAX_UPLOAD_FILES:-10}
+      UPLOAD_ROOT: /uploads
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
     volumes:
       - ./logs/auth:/var/log/auth
+      - uploads:/uploads
     networks:
-      - frontend
       - backend
+      - reverse-proxy-net
     depends_on:
       mysql:
         condition: service_healthy
+    expose:
+      - "8000"
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/static`)"
-      - "traefik.http.routers.auth.entrypoints=websecure"
-      - "traefik.http.routers.auth.tls=true"
-      - "traefik.http.services.auth.loadbalancer.server.port=8000"
-      - "traefik.docker.network=ada_frontend"
-      # Redirection / → /auth/login/
-      - "traefik.http.routers.root.rule=Path(`/`)"
-      - "traefik.http.routers.root.entrypoints=websecure"
-      - "traefik.http.routers.root.tls=true"
-      - "traefik.http.routers.root.middlewares=root-redirect"
-      - "traefik.http.routers.root.service=auth"
-      - "traefik.http.middlewares.root-redirect.redirectregex.regex=^https?://([^/]+)/?$$"
-      - "traefik.http.middlewares.root-redirect.redirectregex.replacement=https://$${1}/auth/login/"
+      argos.monitor: "true"
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:514"
+        tag: "ada"
+        syslog-facility: "daemon"
     restart: unless-stopped
-
-  nginx:
-    build: ./nginx
-    volumes:
-      - ./content:/usr/share/nginx/html:ro
-      - ./logs/nginx:/var/log/nginx
-    networks:
-      - frontend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.nginx.rule=PathPrefix(`/cours`)"
-      - "traefik.http.routers.nginx.entrypoints=websecure"
-      - "traefik.http.routers.nginx.tls=true"
-      - "traefik.http.routers.nginx.middlewares=auth-verify"
-      - "traefik.http.services.nginx.loadbalancer.server.port=80"
-      - "traefik.http.middlewares.auth-verify.forwardauth.address=http://auth:8000/auth/verify/"
-      - "traefik.http.middlewares.auth-verify.forwardauth.trustForwardHeader=true"
-    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/auth/login/', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
 
 networks:
-  frontend:
   backend:
+  reverse-proxy-net:
+    external: true
 
 volumes:
   db_data:
+  uploads:

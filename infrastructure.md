@@ -2,6 +2,10 @@
 
 # Architecture Plateforme Étudiante
 
+Le compose actuel est celui du dépôt de fichiers : `ada-auth` + `ada-mysql`.
+TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
+(Traefik, Devoirs Flask, Quiz, Nginx) décrit plus bas n'est pas déployé.
+
 ## Vue d'ensemble
 
 ```

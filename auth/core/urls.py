@@ -1,6 +1,6 @@
 from django.urls import path
 
-from core import views, views_admin
+from core import views, views_admin, views_devoirs
 
 # Routes sous /auth/
 urlpatterns = [
@@ -14,4 +14,12 @@ urlpatterns = [
 urlpatterns_admin = [
     path('', views_admin.gestion, name='gestion'),
     path('classes/<int:classe_id>/', views_admin.detail_classe, name='detail_classe'),
+    path('devoirs/', views_devoirs.gestion_devoirs, name='devoirs_gestion'),
+    path('devoirs/<int:devoir_id>/', views_devoirs.suivi_devoir, name='devoir_suivi'),
+    path('devoirs/<int:devoir_id>/archive/', views_devoirs.archive_devoir, name='devoir_archive'),
+    path(
+        'devoirs/<int:devoir_id>/fichiers/<int:fichier_id>/',
+        views_devoirs.telecharger_soumission,
+        name='soumission_fichier',
+    ),
 ]

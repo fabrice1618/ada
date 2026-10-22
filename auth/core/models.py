@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.utils import timezone
 
 
 class UtilisateurManager(BaseUserManager):
@@ -78,12 +79,27 @@ class Creneau(models.Model):
         return f"{self.type_ressource} - {self.classe} ({self.ouverture} → {self.fermeture})"
 
 
+TYPE_RENDU_CHOICES = [
+    ('fichier', 'Un fichier'),
+    ('fichiers', 'Plusieurs fichiers'),
+    ('github', 'Lien GitHub'),
+]
+
+
 class Devoir(models.Model):
+    MODE_CHOICES = [
+        ('individuel', 'Individuel'),
+        ('groupe', 'En groupe'),
+    ]
+
     classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name='devoirs')
     titre = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     date_limite = models.DateTimeField()
     cree_par = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='devoirs_crees')
+    type_rendu = models.CharField(max_length=20, choices=TYPE_RENDU_CHOICES, default='fichier')
+    mode = models.CharField(max_length=20, choices=MODE_CHOICES, default='individuel')
+    taille_groupe_max = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'devoirs'
@@ -91,25 +107,102 @@ class Devoir(models.Model):
     def __str__(self):
         return self.titre
 
+    def est_ouvert(self):
+        return timezone.now() <= self.date_limite
+
+    def en_groupe(self):
+        return self.mode == 'groupe'
+
+
+class Groupe(models.Model):
+    devoir = models.ForeignKey(Devoir, on_delete=models.CASCADE, related_name='groupes')
+    nom = models.CharField(max_length=100)
+    cree_par = models.ForeignKey(
+        Utilisateur, on_delete=models.SET_NULL, null=True, related_name='groupes_crees',
+    )
+    date_creation = models.DateTimeField(default=timezone.now)
+    membres = models.ManyToManyField(
+        Utilisateur, through='MembreGroupe', through_fields=('groupe', 'etudiant'),
+        related_name='groupes',
+    )
+
+    class Meta:
+        db_table = 'groupes'
+        constraints = [
+            models.UniqueConstraint(fields=('devoir', 'nom'), name='groupe_nom_unique'),
+        ]
+
+    def __str__(self):
+        return self.nom
+
+
+class MembreGroupe(models.Model):
+    # devoir est recopié du groupe : la contrainte d'unicité garantit
+    # qu'un étudiant n'appartient qu'à un groupe par devoir.
+    groupe = models.ForeignKey(Groupe, on_delete=models.CASCADE, related_name='adhesions')
+    devoir = models.ForeignKey(Devoir, on_delete=models.CASCADE, related_name='adhesions')
+    etudiant = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='adhesions')
+    date_adhesion = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'groupes_membres'
+        constraints = [
+            models.UniqueConstraint(fields=('devoir', 'etudiant'), name='un_groupe_par_devoir'),
+        ]
+
 
 class Soumission(models.Model):
-    TYPE_CHOICES = [
-        ('fichier', 'Fichier'),
-        ('github', 'GitHub'),
-    ]
-
     devoir = models.ForeignKey(Devoir, on_delete=models.CASCADE, related_name='soumissions')
-    etudiant = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='soumissions')
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    chemin_fichier = models.CharField(max_length=500, null=True, blank=True)
-    lien_github = models.URLField(null=True, blank=True)
-    date_soumission = models.DateTimeField(auto_now_add=True)
+    etudiant = models.ForeignKey(
+        Utilisateur, on_delete=models.CASCADE, null=True, blank=True, related_name='soumissions',
+    )
+    groupe = models.ForeignKey(
+        Groupe, on_delete=models.CASCADE, null=True, blank=True, related_name='soumissions',
+    )
+    deposee_par = models.ForeignKey(
+        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='depots',
+    )
+    type = models.CharField(max_length=20, choices=TYPE_RENDU_CHOICES)
+    lien_github = models.URLField(max_length=500, null=True, blank=True)
+    date_soumission = models.DateTimeField()
 
     class Meta:
         db_table = 'soumissions'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('devoir', 'etudiant'),
+                name='soumission_une_par_etudiant',
+            ),
+            models.UniqueConstraint(
+                fields=('devoir', 'groupe'),
+                name='soumission_une_par_groupe',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(etudiant__isnull=False, groupe__isnull=True)
+                    | models.Q(etudiant__isnull=True, groupe__isnull=False)
+                ),
+                name='soumission_etudiant_ou_groupe',
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.etudiant} - {self.devoir}"
+        return f"{self.etudiant or self.groupe} - {self.devoir}"
+
+
+class FichierRendu(models.Model):
+    soumission = models.ForeignKey(Soumission, on_delete=models.CASCADE, related_name='fichiers')
+    chemin = models.CharField(max_length=500)
+    nom_original = models.CharField(max_length=255)
+    taille = models.PositiveBigIntegerField(default=0)
+    date_depot = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'soumissions_fichiers'
+        ordering = ('nom_original', 'id')
+
+    def __str__(self):
+        return self.nom_original
 
 
 class Quiz(models.Model):

@@ -34,14 +34,27 @@
     <div class="container-fluid">
         <div class="row">
             <nav class="col-md-2 sidebar d-flex flex-column p-3">
-                <a class="text-white text-decoration-none fs-5 mb-4" href="{% if user.role == 'admin' %}{% url 'gestion' %}{% else %}{% url 'profil' %}{% endif %}">
+                <a class="text-white text-decoration-none fs-5 mb-4" href="{% url 'accueil' %}">
                     <i class="bi bi-mortarboard-fill"></i> Ada
                 </a>
                 <ul class="nav flex-column flex-grow-1">
                     {% if user.role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if active_page == 'gestion' %}active{% endif %}" href="{% url 'gestion' %}">
-                            <i class="bi bi-upload"></i> Classes & Import
+                            <i class="bi bi-people-fill"></i> Classes & Import
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user.role == 'admin' or user.role == 'enseignant' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'devoirs' %}active{% endif %}" href="{% url 'devoirs_gestion' %}">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Devoirs
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'devoirs' %}active{% endif %}" href="{% url 'devoirs_liste' %}">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Mes devoirs
                         </a>
                     </li>
                     {% endif %}

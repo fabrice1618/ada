@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ devoir.titre }} — Ada{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'devoirs_gestion' %}">Devoirs</a></li>
+        <li class="breadcrumb-item active">{{ devoir.titre }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">{{ devoir.titre }} <small class="text-muted fs-6">{{ devoir.classe.nom }} — {{ devoir.get_type_rendu_display }}, {{ devoir.get_mode_display|lower }}</small></h2>
+    {% if devoir.type_rendu != 'github' %}
+    <a class="btn btn-outline-primary" href="{% url 'devoir_archive' devoir.id %}">Télécharger l'archive</a>
+    {% endif %}
+</div>
+
+<div class="row">
+    <div class="col-lg-4 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Modifier</h5>
+                <form method="post">
+                    {% csrf_token %}
+                    {% for champ in form %}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+                        {{ champ }}
+                        {% if champ.help_text %}<div class="form-text">{{ champ.help_text }}</div>{% endif %}
+                        {% for erreur in champ.errors %}
+                        <div class="text-danger small">{{ erreur }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary w-100">Enregistrer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Rendus ({{ nb_rendus }} / {{ lignes|length }}{% if devoir.en_groupe %} groupes{% endif %})</h5>
+                {% if lignes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{% if devoir.en_groupe %}Groupe{% else %}Étudiant{% endif %}</th>
+                                <th>{% if devoir.type_rendu == 'github' %}Lien{% else %}Fichiers{% endif %}</th>
+                                <th>Déposé le</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ligne in lignes %}
+                            <tr>
+                                <td>
+                                    {% if devoir.en_groupe %}
+                                    <strong>{{ ligne.groupe.nom }}</strong><br>
+                                    <span class="text-muted small">{% for membre in ligne.groupe.membres.all %}{{ membre.nom_complet }}{% if not forloop.last %}, {% endif %}{% empty %}aucun membre{% endfor %}</span>
+                                    {% else %}
+                                    {{ ligne.etudiant.nom_complet }}<br><span class="text-muted small">{{ ligne.etudiant.email }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if ligne.soumission.lien_github %}
+                                    <a href="{{ ligne.soumission.lien_github }}" target="_blank" rel="noopener noreferrer">{{ ligne.soumission.lien_github }}</a>
+                                    {% elif ligne.soumission %}
+                                    {% for fichier in ligne.soumission.fichiers.all %}
+                                    <a href="{% url 'soumission_fichier' devoir.id fichier.id %}">{{ fichier.nom_original }}</a>{% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if ligne.soumission %}
+                                    {{ ligne.soumission.date_soumission|date:"d/m/Y H:i" }}
+                                    {% if devoir.en_groupe and ligne.soumission.deposee_par %}<br><span class="text-muted small">par {{ ligne.soumission.deposee_par.nom_complet }}</span>{% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif devoir.en_groupe %}
+                <p class="text-muted mb-0">Aucun groupe formé.</p>
+                {% else %}
+                <p class="text-muted mb-0">Aucun étudiant dans cette classe.</p>
+                {% endif %}
+
+                {% if devoir.en_groupe and sans_groupe %}
+                <h6 class="mt-4">Sans groupe ({{ sans_groupe|length }})</h6>
+                <p class="text-muted small mb-0">{% for etudiant in sans_groupe %}{{ etudiant.nom_complet }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

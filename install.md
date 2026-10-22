@@ -38,12 +38,16 @@ python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ## 2. Installation locale (laptop)
 
-Le mode local utilise un certificat auto-signé généré automatiquement par Traefik. Pas de nom de domaine ni de configuration DNS nécessaire.
+Ada est un tenant d'argos. Le TLS et le nom `ada.localhost` viennent du reverse proxy, pas d'un Traefik dans ce dépôt.
+
+Dans `.env` : `DOMAIN=ada.localhost` et `SESSION_COOKIE_SECURE=1`.
 
 ### Lancer la stack
 
+Argos doit déjà tourner (`reverse-proxy-net` et `logs_rsyslog`).
+
 ```bash
-docker compose up -d --build
+./start.sh
 ```
 
 ### Initialiser la base de données
@@ -68,26 +72,21 @@ docker compose exec auth python manage.py collectstatic --noinput
 
 ### Accès
 
+Une fois le proxy branché sur `ada-auth:8000` :
+
 | URL | Service |
 |---|---|
-| https://localhost/auth/login/ | Page de connexion |
-| https://localhost/admin/ | Interface d'administration Django |
-| https://localhost/cours/math-101/ | Pages de cours (Forward Auth) |
-
-Le navigateur affichera un avertissement de certificat. C'est normal : accepter l'exception pour continuer.
-
-- **Firefox** : cliquer "Avancé" → "Accepter le risque et poursuivre"
-- **Chrome** : cliquer "Avancé" → "Continuer vers localhost (non sécurisé)", ou taper `thisisunsafe` au clavier
+| https://ada.localhost/auth/login/ | Connexion |
+| https://ada.localhost/admin/ | Import des classes |
+| https://ada.localhost/admin/devoirs/ | Création d'un devoir et suivi des rendus |
+| https://ada.localhost/devoirs/ | Dépôt étudiant |
 
 ### Données de test
 
-Via l'admin Django (https://localhost/admin/) :
-
-1. **Créer une classe** : ex. `Math-101`, année `2026`
-2. **Créer un utilisateur étudiant** : renseigner email, nom, rôle `Étudiant`, lui affecter la classe
-3. **Créer un créneau** : classe `Math-101`, type `page`, chemin `/cours/math-101/`, ouverture et fermeture englobant la date courante
-
-Tester ensuite l'accès aux pages de cours avec le compte étudiant.
+1. Importer un classeur `.xlsx` (colonnes `NOM Prénom` et `Email`, une feuille par classe) avec génération des mots de passe.
+2. Créer un devoir : classe, titre, date limite.
+3. Se connecter avec un compte étudiant de cette classe et déposer un fichier.
+4. Revenir sur le suivi du devoir pour télécharger le fichier ou l'archive zip.
 
 ### Arrêter la stack
 
@@ -95,7 +94,7 @@ Tester ensuite l'accès aux pages de cours avec le compte étudiant.
 docker compose down
 ```
 
-Pour supprimer aussi les données MySQL :
+Pour supprimer aussi la base MySQL et les fichiers déposés :
 
 ```bash
 docker compose down -v
@@ -103,31 +102,32 @@ docker compose down -v
 
 ---
 
-## 3. Mise en production (VPS)
+## 3. VPS de test
 
-### Prérequis serveur
+Le nom public est `https://ada.mips.science`. Le certificat est déjà celui du reverse proxy. Ce dépôt ne lie pas les ports 80 et 443.
 
-- Un nom de domaine pointant vers l'IP du VPS (enregistrement DNS de type A)
-- Ports 80 et 443 ouverts dans le pare-feu
-
-### Configurer le `.env` de production
+### `.env` sur le VPS
 
 ```
-DOMAIN=votre-domaine.fr
-ACME_EMAIL=votre-email@example.com
+DOMAIN=ada.mips.science
 DEBUG=0
+SESSION_COOKIE_SECURE=1
 MYSQL_ROOT_PASSWORD=mot_de_passe_fort
 MYSQL_PASSWORD=mot_de_passe_fort
 DJANGO_SECRET_KEY=cle_secrete_production
 ```
 
-### Lancer avec le profil production
-
-Le fichier `docker-compose.prod.yml` active Let's Encrypt à la place du certificat auto-signé :
+### Lancer
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+./start.sh
 ```
+
+### Jonction proxy
+
+Dans `reverse_proxy/sites.conf`, `ada.mips.science` et `ada.localhost` pointent vers `ada-auth`, port `8000`, option `body_size=20m`. Puis `./reverse_proxy apply`. Cette jonction remplace l'upstream `securetest-web` : SecureTest ne répond plus sur ce nom.
+
+`ada-auth` doit être démarré avant l'apply.
 
 ### Initialiser la base
 
@@ -137,32 +137,15 @@ docker compose exec auth python manage.py createsuperuser
 docker compose exec auth python manage.py collectstatic --noinput
 ```
 
-### Vérifier le certificat
-
-Let's Encrypt met quelques secondes à émettre le certificat au premier démarrage. Vérifier :
+### Vérifier
 
 ```bash
-curl -I https://votre-domaine.fr/auth/login/
+curl -I https://ada.mips.science/auth/login/
 ```
 
-La réponse doit afficher `HTTP/2 200` sans erreur de certificat.
+La réponse doit afficher `HTTP/2 200`. Le certificat est celui déjà émis pour ce nom.
 
-### Alias recommandé
-
-Pour éviter de retaper les deux fichiers à chaque commande, ajouter dans `~/.bashrc` :
-
-```bash
-alias dcp='docker compose -f docker-compose.yml -f docker-compose.prod.yml'
-```
-
-Utilisation :
-
-```bash
-dcp up -d --build
-dcp logs -f auth
-dcp exec auth python manage.py migrate
-dcp down
-```
+Arrêt : `docker compose down` (le volume `uploads` et la base MySQL sont conservés).
 
 ---
 
@@ -171,16 +154,11 @@ dcp down
 ### Logs
 
 ```bash
-# Logs d'un service en temps réel
-docker compose logs -f auth
-
-# Logs applicatifs sur le système de fichiers
+# Fichier applicatif (le driver syslog n'alimente pas `docker logs`)
 tail -f logs/auth/app.log
-tail -f logs/traefik/access.log
-
-# Chercher les erreurs 403
-grep "403" logs/*/app.log
 ```
+
+Les lignes stdout partent vers le syslog d'argos, tag `ada`.
 
 ### Rebuild d'un service après modification
 
@@ -220,18 +198,12 @@ docker compose exec -T mysql mysql -u root -p plateforme < backup.sql
 
 ```
 .
-├── docker-compose.yml          ← stack de base (dev local, cert auto-signé)
-├── docker-compose.prod.yml     ← overlay production (Let's Encrypt)
+├── docker-compose.yml          ← ada-auth + ada-mysql
+├── start.sh                    ← garde-fou argos, puis compose up
 ├── .env                        ← variables d'environnement (non versionné)
 ├── .env.example                ← modèle de .env
-├── traefik/
-│   ├── traefik.yml             ← config Traefik locale
-│   └── traefik.prod.yml        ← config Traefik production (ACME)
-├── auth/                       ← service Django (authentification)
-├── nginx/                      ← service Nginx (pages statiques)
-├── shared/                     ← utilitaires partagés (Flask)
-├── content/                    ← pages de cours HTML
-└── logs/                       ← fichiers de logs (non versionné)
+├── auth/                       ← Django : connexion, classes, devoirs
+└── logs/                       ← logs applicatifs (non versionné)
 ```
 
 ---
@@ -240,9 +212,8 @@ docker compose exec -T mysql mysql -u root -p plateforme < backup.sql
 
 | | Local | Production |
 |---|---|---|
-| Commande | `docker compose up -d` | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` |
-| TLS | Certificat auto-signé (Traefik) | Let's Encrypt |
-| Domaine | `localhost` | Nom de domaine réel |
-| `DOMAIN` | `localhost` | `votre-domaine.fr` |
-| `DEBUG` | `1` (optionnel) | `0` |
-| `ACME_EMAIL` | Non utilisé | Requis |
+| Commande | `./start.sh` | `./start.sh` |
+| TLS | Certificat du reverse proxy | Certificat du reverse proxy |
+| `DOMAIN` | `ada.localhost` | `ada.mips.science` |
+| `DEBUG` | `0` | `0` |
+| `SESSION_COOKIE_SECURE` | `1` | `1` |

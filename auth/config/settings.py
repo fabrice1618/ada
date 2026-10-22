@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from django.contrib.messages import constants as message_constants
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,6 +33,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.TeleversementTropGrosMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -74,6 +76,10 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_NAME = 'sessionid'
 SESSION_COOKIE_PATH = '/'
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', '1') == '1'
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Europe/Paris'
@@ -92,6 +98,29 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://127.0.0.1',
 ]
+if not SESSION_COOKIE_SECURE:
+    CSRF_TRUSTED_ORIGINS += [
+        'http://127.0.0.1:8000',
+        'http://localhost:8000',
+    ]
+
+UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', '/uploads')
+MAX_UPLOAD_SIZE_MB = int(os.environ.get('MAX_UPLOAD_SIZE_MB', '10') or '10')
+ALLOWED_EXTENSIONS = tuple(
+    ext.strip().lower().lstrip('.')
+    for ext in os.environ.get(
+        'ALLOWED_EXTENSIONS', 'pdf,zip,tar.gz,py,java,c,cpp,txt'
+    ).split(',')
+    if ext.strip()
+)
+MAX_UPLOAD_FILES = int(os.environ.get('MAX_UPLOAD_FILES', '10') or '10')
+_MAX_OCTETS = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = _MAX_OCTETS + 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = _MAX_OCTETS
+
+MESSAGE_TAGS = {
+    message_constants.ERROR: 'danger',
+}
 
 LOGGING = {
     'version': 1,
@@ -104,12 +133,6 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': '/var/log/auth/app.log',
-            'formatter': 'plateforme',
-        },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
@@ -118,8 +141,17 @@ LOGGING = {
     },
     'loggers': {
         'auth': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
         },
     },
 }
+
+if Path('/var/log/auth').is_dir():
+    LOGGING['handlers']['file'] = {
+        'level': 'INFO',
+        'class': 'logging.FileHandler',
+        'filename': '/var/log/auth/app.log',
+        'formatter': 'plateforme',
+    }
+    LOGGING['loggers']['auth']['handlers'].append('file')

@@ -8,57 +8,48 @@ Plateforme étudiante multi-services déployée via Docker Compose. L'architectu
 
 ## Architecture
 
-6 containers Docker orchestrés par Docker Compose :
+Deux conteneurs, tenant du reverse proxy d'argos (TLS, routage, logs) :
 
-- **Traefik** — reverse proxy, HTTPS (Let's Encrypt), routage, Forward Auth
-- **Auth (Django + Gunicorn)** — authentification, gestion utilisateurs/classes/créneaux, interface admin, endpoint `/auth/verify/`
-- **Devoirs (Flask + Gunicorn)** — dépôt de fichiers et liens GitHub par les étudiants
-- **Quiz (Flask + Gunicorn)** — passation de quiz avec timer serveur et anti-triche
-- **Nginx** — pages statiques des cours, protégées par Forward Auth via Auth
-- **MySQL 8.0** — base unique partagée par tous les services Python
+- **Auth (Django + Gunicorn)**, conteneur `ada-auth`, port 8000 — connexion, classes, devoirs (dépôt de fichier), endpoint `/auth/verify/`
+- **MySQL 8.0**, conteneur `ada-mysql` — réseau `backend` uniquement
 
-**Réseaux Docker** : `frontend` (Traefik ↔ services web) et `backend` (MySQL ↔ services Python). MySQL n'est pas exposé sur le frontend, Traefik n'est pas sur le backend.
+`ada-auth` rejoint `reverse-proxy-net`. Les fichiers déposés sont dans le volume `uploads` (`/uploads`), servis par Django après contrôle d'identité, jamais en statique. Quiz et pages de cours ne sont pas dans ce compose.
 
-**Sessions** : gérées par Django, stockées dans MySQL (`django_session`). Les services Flask lisent directement cette table pour vérifier l'identité des utilisateurs.
+**Sessions** : Django, table `django_session` dans MySQL. Un devoir a un type de rendu (un fichier, plusieurs fichiers, lien GitHub) et un mode (individuel ou groupe), verrouillés dès le premier rendu. Un rendu (`Soumission`) appartient à un étudiant ou à un groupe ; ses fichiers sont des `FichierRendu`. Les groupes sont propres à un devoir, créés et rejoints par les étudiants (un groupe par étudiant et par devoir, taille maximale fixée par le professeur). Tout se modifie jusqu'à la date limite.
 
 ## Commandes
 
 ```bash
-# Lancer la stack
-docker compose up -d
+# Lancer (argos doit déjà tourner : reverse-proxy-net + logs_rsyslog)
+./start.sh
 
 # Initialiser la base
 docker compose exec auth python manage.py migrate
 docker compose exec auth python manage.py createsuperuser
 
-# Logs
-tail -f logs/traefik/access.log
+# Tests du dépôt de fichiers (SQLite, sans Docker)
+cd auth && python manage.py test core --settings=config.settings_test
+
+# Logs applicatifs (stdout : syslog d'argos, tag ada)
 tail -f logs/auth/app.log
-grep "403" logs/*/app.log
 
 # Rebuild d'un service après modification
 docker compose build <service>
 docker compose up -d <service>
 ```
 
-## Structure des services
+## Structure
 
-Chaque service Flask (`devoirs/`, `quiz/`) suit la même structure :
-- `app.py` — point d'entrée Flask
-- `models.py` — modèles de données
-- `auth_check.py` — lecture de la session Django dans MySQL
-- `slot_check.py` — vérification des créneaux horaires
-- `templates/` — templates Jinja2
+`auth/` est le projet Django :
 
-Le service Auth (`auth/`) est un projet Django classique :
 - `config/` — settings, urls, wsgi
-- `core/` — models (User, Classe, Créneau), views (login, logout, verify), admin
-- `templates/` — login, forbidden
+- `core/` — modèles, connexion, import de classes, dépôt de fichiers (`fichiers.py`, `views_devoirs.py`)
+- `templates/` — pages
+
+Le dépôt écrit sous `UPLOAD_ROOT` avec un nom généré : `{devoir_id}/{etudiant_id}.ext` (groupe : `g{groupe_id}`), et `{devoir_id}/{etudiant_id}/{uuid}.ext` pour un rendu en plusieurs fichiers. L'extension vient de la whitelist, la taille de `MAX_UPLOAD_SIZE_MB`, le nombre de fichiers de `MAX_UPLOAD_FILES`.
 
 ## Conventions
 
-- Langue du code et des modèles : **français** (noms de tables, champs, variables)
-- Configuration via variables d'environnement (fichier `.env`)
-- Logs au format : `[YYYY-MM-DD HH:MM:SS] LEVEL user=ID class=CLASSE ip=IP METHOD /path STATUS [message]`
-- Protection des uploads : whitelist d'extensions + taille maximale
-- Toute ressource (quiz, devoir, page) est soumise à une vérification de créneau horaire en BDD
+- Langue du code et des modèles : **français**
+- Configuration via `.env`
+- Logs : `[YYYY-MM-DD HH:MM:SS] LEVEL message` sur stdout (syslog, tag `ada`) et `logs/auth/app.log`
