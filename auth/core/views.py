@@ -1,9 +1,9 @@
 import logging
-from datetime import datetime
 
 from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
@@ -91,7 +91,7 @@ def deconnexion(request):
 
 
 def verifier(request):
-    """Endpoint Forward Auth pour Traefik.
+    """Endpoint Forward Auth pour le reverse proxy d'argos.
     Retourne 200 si l'utilisateur est authentifié et a un créneau ouvert,
     403 sinon.
     """
@@ -105,15 +105,24 @@ def verifier(request):
         )
         return HttpResponse(status=403)
 
-    # Récupérer le chemin original depuis les headers Traefik
-    original_path = request.META.get('HTTP_X_FORWARDED_URI', '')
+    # Chemin original transmis par nginx (auth_request) :
+    # proxy_set_header X-Original-URI $request_uri;
+    original_path = request.META.get('HTTP_X_ORIGINAL_URI', '')
     user = request.user
-    now = datetime.now()
+    now = timezone.now()
 
     # Vérifier si un créneau est ouvert pour au moins une classe de l'utilisateur
     # Les admins et enseignants passent sans vérification de créneau
     if user.role in ('admin', 'enseignant'):
         return HttpResponse(status=200)
+
+    if not original_path:
+        logger.warning(
+            "Vérification échouée : en-tête X-Original-URI absent",
+            extra={'user': user.id, 'classe': '-', 'ip': ip,
+                   'method': request.method, 'path': request.get_full_path(), 'status': 403}
+        )
+        return HttpResponse(status=403)
 
     classes_ids = list(user.classes.values_list('id', flat=True))
     if not classes_ids:
