@@ -1,7 +1,8 @@
 # Tenant d'argos. Lancer avec ./start.sh : le reseau reverse-proxy-net et
 # logs_rsyslog doivent deja tourner. Le proxy route le conteneur ada-auth
-# (port 8000). La declaration du domaine (ada.mips.science, ada.localhost,
-# body_size=20m) se fait dans reverse_proxy, pas ici.
+# (port 8000) et /cours/ vers ada-cours (port 80). La declaration du domaine
+# (ada.mips.science, ada.localhost, body_size=20m) et le routage de /cours/
+# (applications/ada/sites-extra/) se font dans argos, pas ici.
 
 name: ada
 
@@ -76,6 +77,27 @@ services:
       timeout: 5s
       retries: 3
       start_period: 25s
+
+  # Pages de cours (content/), servies sous /cours/. Argos ne les transmet
+  # qu'apres un 200 de ada-auth (auth_request -> /auth/verify/).
+  cours:
+    build: ./nginx
+    container_name: ada-cours
+    volumes:
+      - ./content:/usr/share/nginx/html:ro
+    networks:
+      - reverse-proxy-net
+    expose:
+      - "80"
+    labels:
+      argos.monitor: "true"
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:514"
+        tag: "ada-cours"
+        syslog-facility: "daemon"
+    restart: unless-stopped
 
 networks:
   backend:

@@ -125,9 +125,9 @@ DJANGO_SECRET_KEY=cle_secrete_production
 
 ### Jonction proxy
 
-Dans `reverse_proxy/sites.conf`, `ada.mips.science` et `ada.localhost` pointent vers `ada-auth`, port `8000`, option `body_size=20m`. Puis `./reverse_proxy apply`. Cette jonction remplace l'upstream `securetest-web` : SecureTest ne répond plus sur ce nom.
+Dans `argos/applications/ada/sites.conf`, `ada.mips.science` et `ada.localhost` pointent vers `ada-auth`, port `8000`, option `body_size=20m`. Le fragment `argos/applications/ada/sites-extra/ada.mips.science.conf` (lien `ada.localhost.conf`) ajoute `/cours/` vers `ada-cours`, port `80`, derrière `auth_request` sur `/auth/verify/`. Puis `socle/reverse_proxy/reverse_proxy apply`. Cette jonction remplace l'upstream `securetest-web` : SecureTest ne répond plus sur ce nom.
 
-`ada-auth` doit être démarré avant l'apply.
+`ada-auth` et `ada-cours` doivent être démarrés avant l'apply.
 
 ### Initialiser la base
 
@@ -215,11 +215,13 @@ docker compose exec -T mysql mysql -u root -p plateforme < backup.sql
 
 ```
 .
-├── docker-compose.yml          ← ada-auth + ada-mysql
+├── docker-compose.yml          ← ada-auth + ada-cours + ada-mysql
 ├── start.sh                    ← garde-fou argos, puis compose up
 ├── .env                        ← variables d'environnement (non versionné)
 ├── .env.example                ← modèle de .env
 ├── auth/                       ← Django : connexion, classes, devoirs
+├── nginx/                      ← image de ada-cours (sert /cours/)
+├── content/                    ← pages de cours, montées en lecture seule
 └── logs/                       ← logs applicatifs (non versionné)
 ```
 

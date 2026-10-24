@@ -1,4 +1,7 @@
 import logging
+import posixpath
+import re
+from urllib.parse import unquote
 
 from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponse
@@ -90,10 +93,29 @@ def deconnexion(request):
     return redirect('/auth/login/')
 
 
+def _chemin_demande(brut):
+    """Chemin de X-Original-URI ramené à ce que nginx sert : sans paramètres,
+    décodé, sans '..' ni '//'. Vide s'il n'est pas absolu."""
+    chemin = unquote(brut.split('?', 1)[0].split('#', 1)[0])
+    if not chemin.startswith('/') or '\x00' in chemin:
+        return ''
+    normalise = posixpath.normpath(re.sub('/+', '/', chemin))
+    if chemin.endswith('/') and normalise != '/':
+        normalise += '/'
+    return normalise
+
+
+def _couvre(chemin_page, chemin):
+    """Un créneau sur /cours/math-101/ (ou /cours/math-101) couvre tout ce dossier,
+    mais pas /cours/math-1010/."""
+    base = chemin_page.rstrip('/')
+    return chemin == chemin_page or chemin == base or chemin.startswith(base + '/')
+
+
 def verifier(request):
-    """Endpoint Forward Auth pour le reverse proxy d'argos.
+    """Endpoint auth_request du reverse proxy d'argos.
     Retourne 200 si l'utilisateur est authentifié et a un créneau ouvert,
-    403 sinon.
+    401 s'il n'est pas connecté (argos redirige vers la connexion), 403 sinon.
     """
     ip = _get_client_ip(request)
 
@@ -101,13 +123,13 @@ def verifier(request):
         logger.warning(
             "Vérification échouée : non authentifié",
             extra={'user': '-', 'classe': '-', 'ip': ip,
-                   'method': request.method, 'path': request.get_full_path(), 'status': 403}
+                   'method': request.method, 'path': request.get_full_path(), 'status': 401}
         )
-        return HttpResponse(status=403)
+        return HttpResponse(status=401)
 
     # Chemin original transmis par nginx (auth_request) :
     # proxy_set_header X-Original-URI $request_uri;
-    original_path = request.META.get('HTTP_X_ORIGINAL_URI', '')
+    original_path = _chemin_demande(request.META.get('HTTP_X_ORIGINAL_URI', ''))
     user = request.user
     now = timezone.now()
 
@@ -133,13 +155,13 @@ def verifier(request):
         )
         return HttpResponse(status=403)
 
-    creneau_ouvert = Creneau.objects.filter(
+    chemins_ouverts = Creneau.objects.filter(
         classe_id__in=classes_ids,
         type_ressource='page',
-        chemin_page=original_path,
         ouverture__lte=now,
         fermeture__gte=now,
-    ).exists()
+    ).exclude(chemin_page__isnull=True).exclude(chemin_page='').values_list('chemin_page', flat=True)
+    creneau_ouvert = any(_couvre(c, original_path) for c in chemins_ouverts)
 
     if creneau_ouvert:
         return HttpResponse(status=200)

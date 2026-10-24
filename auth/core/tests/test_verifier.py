@@ -23,9 +23,39 @@ class VerifierTests(TestCase):
         )
         self.client.force_login(self.eleve)
 
+    def _creneau(self, chemin):
+        maintenant = timezone.now()
+        Creneau.objects.create(
+            classe=self.classe, type_ressource='page', chemin_page=chemin,
+            ouverture=maintenant - timedelta(hours=1), fermeture=maintenant + timedelta(hours=1),
+        )
+
+    def _statut(self, uri):
+        return self.client.get(self.url, HTTP_X_ORIGINAL_URI=uri).status_code
+
     def test_creneau_ouvert(self):
         reponse = self.client.get(self.url, HTTP_X_ORIGINAL_URI=self.page)
         self.assertEqual(reponse.status_code, 200)
+
+    def test_parametres_ignores(self):
+        self.assertEqual(self._statut(self.page + '?v=2'), 200)
+
+    def test_dossier_couvre_ses_fichiers(self):
+        self._creneau('/cours/info-201/')
+        self.assertEqual(self._statut('/cours/info-201/'), 200)
+        self.assertEqual(self._statut('/cours/info-201/img/schema.png'), 200)
+        self.assertEqual(self._statut('/cours/info-2010/index.html'), 403)
+
+    def test_dossier_sans_barre_finale(self):
+        self._creneau('/cours/info-201')
+        self.assertEqual(self._statut('/cours/info-201/index.html'), 200)
+        self.assertEqual(self._statut('/cours/info-2010/index.html'), 403)
+
+    def test_remontee_refusee(self):
+        self._creneau('/cours/info-201/')
+        self.assertEqual(self._statut('/cours/info-201/../secret/index.html'), 403)
+        self.assertEqual(self._statut('/cours/info-201/%2e%2e/secret/index.html'), 403)
+        self.assertEqual(self._statut('/cours/info-201//index.html'), 200)
 
     def test_autre_page(self):
         reponse = self.client.get(self.url, HTTP_X_ORIGINAL_URI='/cours/info-201/index.html')
@@ -45,4 +75,4 @@ class VerifierTests(TestCase):
     def test_non_connecte(self):
         self.client.logout()
         reponse = self.client.get(self.url, HTTP_X_ORIGINAL_URI=self.page)
-        self.assertEqual(reponse.status_code, 403)
+        self.assertEqual(reponse.status_code, 401)

@@ -8,12 +8,13 @@ Plateforme étudiante multi-services déployée via Docker Compose. L'architectu
 
 ## Architecture
 
-Deux conteneurs, tenant du reverse proxy d'argos (TLS, routage, logs) :
+Trois conteneurs, tenant du reverse proxy d'argos (TLS, routage, logs) :
 
 - **Auth (Django + Gunicorn)**, conteneur `ada-auth`, port 8000 — connexion, classes, devoirs (dépôt de fichier), endpoint `/auth/verify/`
+- **Cours (nginx)**, conteneur `ada-cours`, port 80 — pages de `content/` sous `/cours/`, en lecture seule
 - **MySQL 8.0**, conteneur `ada-mysql` — réseau `backend` uniquement
 
-`ada-auth` rejoint `reverse-proxy-net`. Les fichiers déposés sont dans le volume `uploads` (`/uploads`), servis par Django après contrôle d'identité, jamais en statique. Quiz et pages de cours ne sont pas dans ce compose.
+`ada-auth` et `ada-cours` rejoignent `reverse-proxy-net`. Les fichiers déposés sont dans le volume `uploads` (`/uploads`), servis par Django après contrôle d'identité, jamais en statique. Argos ne sert `/cours/` qu'après un 200 de `/auth/verify/` (auth_request, chemin dans `X-Original-URI`, fragment `argos/applications/ada/sites-extra/`) : 401 renvoie vers la connexion. Un créneau `page` couvre son `chemin_page` et tout ce qui est dessous. Le quiz n'est pas dans ce compose.
 
 **Sessions** : Django, table `django_session` dans MySQL. Un devoir a un type de rendu (un fichier, plusieurs fichiers, lien GitHub) et un mode (individuel ou groupe), verrouillés dès le premier rendu. Un rendu (`Soumission`) appartient à un étudiant ou à un groupe ; ses fichiers sont des `FichierRendu`. Les groupes sont propres à un devoir, créés et rejoints par les étudiants (un groupe par étudiant et par devoir, taille maximale fixée par le professeur). Tout se modifie jusqu'à la date limite.
 

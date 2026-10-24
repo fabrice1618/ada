@@ -2,9 +2,9 @@
 
 # Architecture Plateforme Étudiante
 
-Le compose actuel est celui du dépôt de fichiers : `ada-auth` + `ada-mysql`.
-TLS, nom de domaine et syslog viennent d'argos. Le schéma cible
-(Devoirs Flask, Quiz, Nginx) décrit plus bas n'est pas déployé.
+Le compose actuel : `ada-auth` + `ada-cours` (nginx, pages de cours) + `ada-mysql`.
+TLS, nom de domaine et syslog viennent d'argos. Les services Flask
+(Devoirs, Quiz) décrits plus bas ne sont pas déployés : les devoirs sont dans Django.
 
 ## Vue d'ensemble
 
@@ -140,7 +140,7 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma cible
 | Rôle            | Servir les supports de cours, PDF, pages HTML       |
 | Contenu         | Volume monté depuis `content/`                      |
 | Protection      | Forward Auth via argos → appel à `/auth/verify/`    |
-| Logs            | Fichier texte `/var/log/nginx/access.log`           |
+| Logs            | Access log du reverse proxy d'argos                 |
 
 **Fonctionnement de la protection :**
 
@@ -155,9 +155,10 @@ Argos (auth_request) → Django /auth/verify/
     │                         ├── Classe autorisée pour math-101 ?
     │                         ├── Créneau horaire valide ?
     │                         │
-    │                         └── Réponse 200 ou 403
+    │                         └── Réponse 200, 401 ou 403
     │
     ├── 200 → Argos transmet à Nginx → page servie
+    ├── 401 → Argos redirige vers /auth/login/?next=…
     └── 403 → Argos renvoie l'erreur au client
 ```
 
@@ -289,10 +290,8 @@ volumes:
   │   └── app.log             ← connexions, vérifications, erreurs
   ├── devoirs/
   │   └── app.log             ← dépôts, erreurs upload
-  ├── quiz/
-  │   └── app.log             ← tentatives, scores, erreurs
-  └── nginx/
-      └── access.log          ← pages statiques consultées
+  └── quiz/
+      └── app.log             ← tentatives, scores, erreurs
 ```
 
 **Format recommandé (commun à tous les services) :**
