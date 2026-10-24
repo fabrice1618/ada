@@ -3,8 +3,8 @@
 # Architecture Plateforme Étudiante
 
 Le compose actuel est celui du dépôt de fichiers : `ada-auth` + `ada-mysql`.
-TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
-(Traefik, Devoirs Flask, Quiz, Nginx) décrit plus bas n'est pas déployé.
+TLS, nom de domaine et syslog viennent d'argos. Le schéma cible
+(Devoirs Flask, Quiz, Nginx) décrit plus bas n'est pas déployé.
 
 ## Vue d'ensemble
 
@@ -15,9 +15,9 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
                             │ HTTPS (443)
                             ▼
                    ┌─────────────────┐
-                   │     TRAEFIK     │
+                   │      ARGOS      │
                    │  Reverse Proxy  │
-                   │  Let's Encrypt  │
+                   │       TLS       │
                    │  Access logs    │
                    └───┬───┬───┬─────┘
                        │   │   │
@@ -44,15 +44,13 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
 
 ## Containers
 
-### Container 1 — Traefik
+### Reverse proxy — argos (hors de ce dépôt)
 
 | Élément         | Détail                                              |
 |-----------------|-----------------------------------------------------|
-| Image           | `traefik:v3.0`                                      |
+| Fourni par      | argos (réseau `reverse-proxy-net`)                  |
 | Rôle            | Reverse proxy, terminaison HTTPS, routage, logs     |
-| Ports exposés   | 80 (redirige vers 443), 443                         |
-| HTTPS           | Certificats Let's Encrypt automatiques              |
-| Logs            | Fichier texte `/var/log/traefik/access.log`         |
+| Logs            | Syslog d'argos                                      |
 | Forward Auth    | Délègue la vérification au service Auth pour Nginx  |
 
 **Routage :**
@@ -67,7 +65,7 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
 
 ---
 
-### Container 2 — Auth (Django)
+### Container 1 — Auth (Django)
 
 | Élément         | Détail                                              |
 |-----------------|-----------------------------------------------------|
@@ -85,12 +83,12 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
 - Gestion des utilisateurs, classes, rôles
 - Gestion des créneaux horaires par ressource et par classe
 - Sessions Django classiques stockées dans MySQL
-- Endpoint `/auth/verify/` appelé par Traefik pour protéger Nginx
+- Endpoint `/auth/verify/` appelé par le reverse proxy pour protéger Nginx
 - Interface `/admin/` pour gérer utilisateurs, classes, créneaux
 
 ---
 
-### Container 3 — Devoirs (Flask)
+### Container 2 — Devoirs (Flask)
 
 | Élément         | Détail                                              |
 |-----------------|-----------------------------------------------------|
@@ -110,12 +108,12 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
 
 **Vérification de l'identité :**
 
-- Le service Auth transmet via headers HTTP (injectés par Traefik ou par cookie de session partagé) l'identité de l'utilisateur
+- Le service Auth transmet via headers HTTP (injectés par le reverse proxy ou par cookie de session partagé) l'identité de l'utilisateur
 - Le service Devoirs interroge MySQL pour vérifier la session
 
 ---
 
-### Container 4 — Quiz (Flask)
+### Container 3 — Quiz (Flask)
 
 | Élément         | Détail                                              |
 |-----------------|-----------------------------------------------------|
@@ -134,14 +132,14 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
 
 ---
 
-### Container 5 — Nginx (Pages statiques)
+### Container 4 — Nginx (Pages statiques)
 
 | Élément         | Détail                                              |
 |-----------------|-----------------------------------------------------|
 | Image           | `nginx:alpine`                                      |
 | Rôle            | Servir les supports de cours, PDF, pages HTML       |
 | Contenu         | Volume monté depuis `content/`                      |
-| Protection      | Forward Auth via Traefik → appel à `/auth/verify/`  |
+| Protection      | Forward Auth via argos → appel à `/auth/verify/`    |
 | Logs            | Fichier texte `/var/log/nginx/access.log`           |
 
 **Fonctionnement de la protection :**
@@ -150,7 +148,8 @@ TLS, nom de domaine et syslog viennent d'argos. Le schéma à six conteneurs
 Étudiant → /cours/math-101/chapitre1.html
     │
     ▼
-Traefik → Forward Auth → Django /auth/verify/?path=/cours/math-101/
+Argos (auth_request) → Django /auth/verify/
+    │   X-Original-URI: /cours/math-101/chapitre1.html
     │                         │
     │                         ├── Session valide ?
     │                         ├── Classe autorisée pour math-101 ?
@@ -158,13 +157,13 @@ Traefik → Forward Auth → Django /auth/verify/?path=/cours/math-101/
     │                         │
     │                         └── Réponse 200 ou 403
     │
-    ├── 200 → Traefik transmet à Nginx → page servie
-    └── 403 → Traefik renvoie l'erreur au client
+    ├── 200 → Argos transmet à Nginx → page servie
+    └── 403 → Argos renvoie l'erreur au client
 ```
 
 ---
 
-### Container 6 — MySQL
+### Container 5 — MySQL
 
 | Élément         | Détail                                              |
 |-----------------|-----------------------------------------------------|
@@ -286,8 +285,6 @@ Tous les logs sont des fichiers texte stockés dans un volume partagé.
 ```
 volumes:
   logs/
-  ├── traefik/
-  │   └── access.log          ← toutes les requêtes HTTP
   ├── auth/
   │   └── app.log             ← connexions, vérifications, erreurs
   ├── devoirs/
@@ -320,7 +317,7 @@ volumes:
 ┌─────────────────────────────────────────────┐
 │  Réseau "frontend"                          │
 │                                             │
-│  Traefik ◄──► Django (Auth)                 │
+│  Argos   ◄──► Django (Auth)                 │
 │          ◄──► Flask  (Devoirs)              │
 │          ◄──► Flask  (Quiz)                 │
 │          ◄──► Nginx  (Pages)                │
@@ -335,7 +332,7 @@ volumes:
 └─────────────────────────────────────────────┘
 
 MySQL n'est PAS sur le réseau frontend.
-Traefik n'est PAS sur le réseau backend.
+Argos n'est PAS sur le réseau backend.
 ```
 
 ---
@@ -348,7 +345,6 @@ Traefik n'est PAS sur le réseau backend.
 | `uploads`       | Devoirs (Flask)      | Fichiers déposés par étudiants   |
 | `content`       | Nginx                | Pages statiques des cours        |
 | `logs`          | Tous les containers  | Fichiers de logs texte           |
-| `traefik_certs` | Traefik              | Certificats Let's Encrypt        |
 
 ---
 
@@ -359,9 +355,6 @@ plateforme/
 │
 ├── docker-compose.yml
 ├── .env
-│
-├── traefik/
-│   └── traefik.yml
 │
 ├── auth/
 │   ├── Dockerfile
@@ -417,7 +410,6 @@ plateforme/
 ├── uploads/                   (fichiers déposés)
 │
 └── logs/                      (fichiers de logs)
-    ├── traefik/
     ├── auth/
     ├── devoirs/
     ├── quiz/
@@ -430,7 +422,7 @@ plateforme/
 
 | Risque                 | Protection                                    |
 |------------------------|-----------------------------------------------|
-| Interception réseau    | HTTPS obligatoire via Traefik + Let's Encrypt |
+| Interception réseau    | HTTPS obligatoire via le reverse proxy argos  |
 | Mots de passe          | Hashés par Django (PBKDF2 par défaut)         |
 | Injection SQL          | ORM Django + paramétrage MySQL côté Flask     |
 | Upload malveillant     | Whitelist extensions + taille maximale         |
@@ -465,7 +457,6 @@ docker compose exec auth python manage.py createsuperuser
 # Copier les fichiers HTML/PDF dans content/
 
 # 6. Consulter les logs
-tail -f logs/traefik/access.log
 tail -f logs/auth/app.log
 grep "403" logs/*/app.log
 ```
@@ -476,12 +467,12 @@ grep "403" logs/*/app.log
 
 | Élément              | Choix retenu                    |
 |----------------------|---------------------------------|
-| Containers           | 6 (Traefik, Auth, Devoirs, Quiz, Nginx, MySQL) |
+| Containers           | 5 (Auth, Devoirs, Quiz, Nginx, MySQL) |
 | Frameworks Python    | Django (auth) + Flask (devoirs, quiz) |
 | Base de données      | MySQL 8.0 unique partagée       |
 | Sessions             | Django sessions en MySQL        |
 | Cache                | Aucun (pas de Redis)            |
 | Logs                 | Fichiers texte par container    |
-| HTTPS                | Traefik + Let's Encrypt         |
+| HTTPS                | Reverse proxy d'argos           |
 | Pages statiques      | Nginx protégé par Forward Auth  |
 | Permissions          | Vérification en BDD (classe + créneau) |

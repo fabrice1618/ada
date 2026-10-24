@@ -38,7 +38,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ## 2. Installation locale (laptop)
 
-Ada est un tenant d'argos. Le TLS et le nom `ada.localhost` viennent du reverse proxy, pas d'un Traefik dans ce dépôt.
+Ada est un tenant d'argos. Le TLS et le nom `ada.localhost` viennent du reverse proxy d'argos.
 
 Dans `.env` : `DOMAIN=ada.localhost` et `SESSION_COOKIE_SECURE=1`.
 

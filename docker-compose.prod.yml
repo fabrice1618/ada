@@ -1,3 +1,0 @@
-# TLS et routage sont ceux du reverse proxy d'argos.
-# Ce fichier ne declare plus de service : ne pas relancer Traefik.
-services: {}
