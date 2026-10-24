@@ -1,0 +1,56 @@
+{# Champs du formulaire de devoir (ada/formulaires.py : FormulaireDevoir). #}
+{% macro erreurs(form, champ) %}
+{% for erreur in form.erreurs.get(champ, []) %}
+<div class="text-danger small">{{ erreur }}</div>
+{% endfor %}
+{% endmacro %}
+
+{% macro champs_devoir(form) %}
+{% set v = form.valeurs %}
+{% if form.avec_classe %}
+<div class="mb-3">
+    <label class="form-label" for="id_classe">Classe</label>
+    <select name="classe" id="id_classe" class="form-select" required>
+        <option value="">---------</option>
+        {% for classe in form.classes %}
+        <option value="{{ classe.id }}" {% if v.get('classe')|string == classe.id|string %}selected{% endif %}>{{ classe }}</option>
+        {% endfor %}
+    </select>
+    {{ erreurs(form, 'classe') }}
+</div>
+{% endif %}
+<div class="mb-3">
+    <label class="form-label" for="id_titre">Titre</label>
+    <input type="text" name="titre" id="id_titre" maxlength="255" class="form-control" value="{{ v.titre }}" required>
+    {{ erreurs(form, 'titre') }}
+</div>
+<div class="mb-3">
+    <label class="form-label" for="id_description">Description</label>
+    <textarea name="description" id="id_description" rows="3" class="form-control">{{ v.description }}</textarea>
+    {{ erreurs(form, 'description') }}
+</div>
+<div class="mb-3">
+    <label class="form-label" for="id_date_limite">Date limite</label>
+    <input type="datetime-local" name="date_limite" id="id_date_limite" class="form-control" value="{{ v.date_limite }}" required>
+    {{ erreurs(form, 'date_limite') }}
+</div>
+{% for champ, libelle, choix in [('type_rendu', 'Type de rendu', form.choix_type), ('mode', 'Rendu', form.choix_mode)] %}
+<div class="mb-3">
+    <label class="form-label" for="id_{{ champ }}">{{ libelle }}</label>
+    <select name="{{ champ }}" id="id_{{ champ }}" class="form-select" {% if form.verrouille %}disabled{% endif %}>
+        {% for valeur, texte in choix %}
+        <option value="{{ valeur }}" {% if v[champ] == valeur %}selected{% endif %}>{{ texte }}</option>
+        {% endfor %}
+    </select>
+    {% if form.verrouille %}<div class="form-text">Verrouillé : des rendus ont été déposés.</div>{% endif %}
+    {{ erreurs(form, champ) }}
+</div>
+{% endfor %}
+<div class="mb-3">
+    <label class="form-label" for="id_taille_groupe_max">Taille maximale des groupes</label>
+    <input type="number" name="taille_groupe_max" id="id_taille_groupe_max" min="2" max="20" class="form-control"
+           value="{{ v.taille_groupe_max if v.taille_groupe_max is not none else '' }}">
+    <div class="form-text">Pour un rendu en groupe.</div>
+    {{ erreurs(form, 'taille_groupe_max') }}
+</div>
+{% endmacro %}

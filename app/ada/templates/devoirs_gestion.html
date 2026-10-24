@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_formulaire_devoir.html" import champs_devoir %}
+{% block title %}Devoirs — Ada{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Devoirs</h2>
+
+<div class="row">
+    <div class="col-lg-5 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Nouveau devoir</h5>
+                <form method="post">
+                    <input type="hidden" name="csrf" value="{{ csrf_jeton() }}">
+                    {{ champs_devoir(form) }}
+                    <button type="submit" class="btn btn-primary w-100">Créer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Devoirs existants</h5>
+                {% if lignes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Titre</th>
+                                <th>Classe</th>
+                                <th>Limite</th>
+                                <th>Rendus</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ligne in lignes %}
+                            {% set devoir = ligne.devoir %}
+                            <tr>
+                                <td><a href="{{ url_for('enseignant.suivi', classe_id=devoir.classe_id, devoir_id=devoir.id) }}">{{ devoir.titre }}</a><br><span class="text-muted small">{{ devoir.libelle_type }}, {{ devoir.libelle_mode|lower }}</span></td>
+                                <td>{{ devoir.classe.nom }}</td>
+                                <td>{{ devoir.date_limite|date_fr }}</td>
+                                <td>{% if devoir.en_groupe %}{{ ligne.nb_rendus }} / {{ ligne.nb_groupes }} groupes{% else %}{{ ligne.nb_rendus }} / {{ ligne.nb_etudiants }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Aucun devoir.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

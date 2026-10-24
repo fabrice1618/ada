@@ -1,0 +1,6 @@
+flask>=3.1,<4
+gunicorn
+openpyxl
+tzdata
+# Lecture de l'ancienne base MySQL (flask importer-mysql) ; inutile une fois la migration faite.
+PyMySQL

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Gestion des classes — Ada{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Gestion des classes</h2>
+
+<div class="row">
+    <!-- Formulaire d'import -->
+    <div class="col-lg-5 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-upload"></i> Importer une classe</h5>
+                <p class="text-muted small mb-3">
+                    Fichier Excel avec colonnes <strong>NOM Prénom</strong> et <strong>Email</strong>.
+                    Le nom de la feuille sera le nom de la classe.
+                </p>
+
+                <form method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf" value="{{ csrf_jeton() }}">
+
+                    <div class="mb-3">
+                        <label for="fichier" class="form-label">Fichier .xlsx</label>
+                        <input type="file" class="form-control" id="fichier" name="fichier"
+                               accept=".xlsx" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="annee" class="form-label">Année</label>
+                        <input type="text" class="form-control" id="annee" name="annee"
+                               placeholder="2025-2026" required>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label for="debut_autorisation" class="form-label">Début autorisation</label>
+                            <input type="date" class="form-control" id="debut_autorisation" name="debut_autorisation">
+                        </div>
+                        <div class="col-6">
+                            <label for="fin_autorisation" class="form-label">Fin autorisation</label>
+                            <input type="date" class="form-control" id="fin_autorisation" name="fin_autorisation">
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="generer_mdp" name="generer_mdp" checked>
+                        <label class="form-check-label" for="generer_mdp">
+                            Générer des mots de passe aléatoires
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload"></i> Importer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des classes -->
+    <div class="col-lg-7 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="bi bi-people-fill"></i> Classes existantes</h5>
+
+                {% if classes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Classe</th>
+                                <th>Année</th>
+                                <th>Étudiants</th>
+                                <th>Autorisation</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for classe, nb_etudiants in classes %}
+                            <tr>
+                                <td>{{ classe.nom }}</td>
+                                <td>{{ classe.annee }}</td>
+                                <td><span class="badge bg-primary">{{ nb_etudiants }}</span></td>
+                                <td class="small">
+                                    {% if classe.debut_autorisation and classe.fin_autorisation %}
+                                    {{ classe.debut_autorisation|date_fr('%d/%m/%Y') }} → {{ classe.fin_autorisation|date_fr('%d/%m/%Y') }}
+                                    {% elif classe.debut_autorisation %}
+                                    Dès {{ classe.debut_autorisation|date_fr('%d/%m/%Y') }}
+                                    {% elif classe.fin_autorisation %}
+                                    Jusqu'au {{ classe.fin_autorisation|date_fr('%d/%m/%Y') }}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('admin.detail_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3 mb-0">Aucune classe importée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Résultats de l'import -->
+{% if resultats %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title">Résultat de l'import</h5>
+        <p>Classe <strong>{{ resultats.classe }}</strong> — {{ resultats.crees }} compte(s) créé(s), {{ resultats.existants }} existant(s).</p>
+
+        {% if resultats.comptes %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            Conservez ces mots de passe, ils ne seront plus affichés.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Email</th>
+                        <th>Mot de passe</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for compte in resultats.comptes %}
+                    <tr>
+                        <td>{{ compte.nom }}</td>
+                        <td>{{ compte.email }}</td>
+                        <td><code>{{ compte.mot_de_passe }}</code></td>
+                        <td>
+                            {% if compte.nouveau %}
+                            <span class="badge bg-success">Créé</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Existant</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

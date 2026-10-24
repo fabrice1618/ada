@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Mon profil — Ada{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Mon profil</h2>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Informations</h5>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Nom</dt>
+                    <dd class="col-sm-8">{{ utilisateur.nom_complet }}</dd>
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">{{ utilisateur.email }}</dd>
+                    <dt class="col-sm-4">Rôle</dt>
+                    <dd class="col-sm-8">{{ utilisateur.libelle_role }}</dd>
+                    {% if classes %}
+                    <dt class="col-sm-4">Classes</dt>
+                    <dd class="col-sm-8">
+                        {% for classe in classes %}
+                        <span class="badge bg-primary">{{ classe.nom }}</span>
+                        {% endfor %}
+                    </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Changer le mot de passe</h5>
+
+                <form method="post">
+                    <input type="hidden" name="csrf" value="{{ csrf_jeton() }}">
+
+                    <div class="mb-3">
+                        <label for="ancien_mdp" class="form-label">Mot de passe actuel</label>
+                        <input type="password" class="form-control" id="ancien_mdp" name="ancien_mdp" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nouveau_mdp" class="form-label">Nouveau mot de passe</label>
+                        <input type="password" class="form-control" id="nouveau_mdp" name="nouveau_mdp"
+                               minlength="8" required>
+                        <div class="form-text">Minimum 8 caractères.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmation_mdp" class="form-label">Confirmer</label>
+                        <input type="password" class="form-control" id="confirmation_mdp" name="confirmation_mdp"
+                               minlength="8" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Modifier
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

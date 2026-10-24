@@ -1,6 +1,0 @@
-django>=5.0,<6.0
-gunicorn
-mysqlclient
-python-dotenv
-whitenoise
-openpyxl

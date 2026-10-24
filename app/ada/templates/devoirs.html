@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Mes devoirs — Ada{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Mes devoirs</h2>
+
+{% if not classes %}
+<div class="text-center text-muted py-5">
+    <p>Vous n'êtes inscrit à aucune classe.</p>
+</div>
+{% elif not lignes %}
+<div class="text-center text-muted py-5">
+    <p>Aucun devoir pour vos classes.</p>
+</div>
+{% else %}
+<div class="table-responsive">
+    <table class="table table-hover bg-white shadow-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Devoir</th>
+                <th>Classe</th>
+                <th>Date limite</th>
+                <th>Rendu</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in lignes %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('devoirs.detail', classe_id=ligne.devoir.classe_id, devoir_id=ligne.devoir.id) }}">{{ ligne.devoir.titre }}</a>
+                    {% if ligne.devoir.en_groupe %}<span class="badge bg-info text-dark ms-1">Groupe</span>{% endif %}
+                </td>
+                <td>{{ ligne.devoir.classe.nom }}</td>
+                <td>{{ ligne.devoir.date_limite|date_fr }}</td>
+                <td>
+                    {% if ligne.rendu %}
+                    <span class="badge bg-success">Déposé</span>
+                    {% elif ligne.sans_groupe and ligne.devoir.est_ouvert %}
+                    <span class="badge bg-warning text-dark">Groupe à rejoindre</span>
+                    {% elif ligne.devoir.est_ouvert %}
+                    <span class="badge bg-warning text-dark">À rendre</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Non rendu</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

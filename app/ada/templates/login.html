@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Connexion — Ada{% endblock %}
+
+{% block content_anonymous %}
+<div class="card border-0 shadow-sm" style="max-width: 420px; width: 100%;">
+    <div class="card-body p-4">
+        <h3 class="text-center mb-4">Connexion</h3>
+
+        {% if erreur %}
+        <div class="alert alert-danger py-2">
+            <p class="mb-0">{{ erreur }}</p>
+        </div>
+        {% endif %}
+
+        <form method="post">
+            <input type="hidden" name="csrf" value="{{ csrf_jeton() }}">
+            {% if suivant %}
+            <input type="hidden" name="next" value="{{ suivant }}">
+            {% endif %}
+            <div class="mb-3">
+                <label for="id_email" class="form-label">Email</label>
+                <input type="email" name="email" id="id_email" class="form-control" placeholder="Adresse email"
+                       value="{{ email }}" autofocus required>
+            </div>
+            <div class="mb-3">
+                <label for="id_mot_de_passe" class="form-label">Mot de passe</label>
+                <input type="password" name="mot_de_passe" id="id_mot_de_passe" class="form-control"
+                       placeholder="Mot de passe" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Se connecter</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

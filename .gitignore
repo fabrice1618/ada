@@ -1,6 +1,6 @@
 .env
-db_data/
-uploads/
+# Sauvegardes et exports de l'ancienne version (migration/1-sauvegarder-mysql.sh)
+migration-mysql/
 __pycache__/
 *.pyc
 *.egg-info/
