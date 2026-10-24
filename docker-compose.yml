@@ -27,6 +27,12 @@ services:
     restart: unless-stopped
     labels:
       argos.monitor: "true"
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://127.0.0.1:514"
+        tag: "ada-mysql"
+        syslog-facility: "daemon"
 
   auth:
     build: ./auth
@@ -46,7 +52,6 @@ services:
       UPLOAD_ROOT: /uploads
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
     volumes:
-      - ./logs/auth:/var/log/auth
       - uploads:/uploads
     networks:
       - backend

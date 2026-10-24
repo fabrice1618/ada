@@ -1,5 +1,4 @@
 import logging
-import os
 from datetime import datetime
 
 
@@ -23,18 +22,11 @@ class PlatformeFormatter(logging.Formatter):
 
 
 def configurer_logging(nom_service):
-    log_dir = f'/var/log/{nom_service}'
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, 'app.log')
-
-    handler = logging.FileHandler(log_file)
-    handler.setFormatter(PlatformeFormatter())
-
+    # stdout seulement : le driver syslog du conteneur l'envoie a argos.
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(PlatformeFormatter())
 
     logger = logging.getLogger(nom_service)
     logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
     logger.addHandler(console_handler)
     return logger

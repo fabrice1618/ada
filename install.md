@@ -153,12 +153,11 @@ Arrêt : `docker compose down` (le volume `uploads` et la base MySQL sont conser
 
 ### Logs
 
-```bash
-# Fichier applicatif (le driver syslog n'alimente pas `docker logs`)
-tail -f logs/auth/app.log
-```
+Tous les logs partent vers le syslog d'argos (tags `ada`, `ada-cours`, `ada-mysql`) : rien n'est écrit dans `logs/`, et `docker logs` reste vide. Les lire dans la page Logs du dashboard argos, ou :
 
-Les lignes stdout partent vers le syslog d'argos, tag `ada`.
+```bash
+docker exec logs_rsyslog python3 -c "import sqlite3; c=sqlite3.connect('file:/logs/logs.db?mode=ro',uri=True); [print(*r) for r in c.execute(\"select received_at, container, msg from system_logs where container like 'ada%' order by id desc limit 50\")]"
+```
 
 ### Rebuild d'un service après modification
 
@@ -222,7 +221,6 @@ docker compose exec -T mysql mysql -u root -p plateforme < backup.sql
 ├── auth/                       ← Django : connexion, classes, devoirs
 ├── nginx/                      ← image de ada-cours (sert /cours/)
 ├── content/                    ← pages de cours, montées en lecture seule
-└── logs/                       ← logs applicatifs (non versionné)
 ```
 
 ---

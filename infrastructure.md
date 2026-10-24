@@ -75,7 +75,7 @@ TLS, nom de domaine et syslog viennent d'argos. Les services Flask
 |                 | Vérification des permissions et créneaux            |
 |                 | Endpoint `/auth/verify/` pour le Forward Auth Nginx |
 |                 | Interface admin Django                              |
-| Logs            | Fichier texte `/var/log/auth/app.log`               |
+| Logs            | stdout -> syslog d'argos (tag `ada`)                |
 
 **Responsabilités :**
 
@@ -96,7 +96,7 @@ TLS, nom de domaine et syslog viennent d'argos. Les services Flask
 | Base de données | MySQL                                               |
 | Rôle            | Dépôt de fichiers et de liens GitHub                |
 | Stockage        | Volume Docker `uploads/`                            |
-| Logs            | Fichier texte `/var/log/devoirs/app.log`            |
+| Logs            | stdout -> syslog d'argos                            |
 
 **Responsabilités :**
 
@@ -120,7 +120,7 @@ TLS, nom de domaine et syslog viennent d'argos. Les services Flask
 | Framework       | Flask + Gunicorn                                    |
 | Base de données | MySQL                                               |
 | Rôle            | Passation de quiz et tests                          |
-| Logs            | Fichier texte `/var/log/quiz/app.log`               |
+| Logs            | stdout -> syslog d'argos                            |
 
 **Responsabilités :**
 
@@ -281,18 +281,10 @@ Flask interroge MySQL : SELECT * FROM django_session WHERE session_key = ?
 
 ## Gestion des logs
 
-Tous les logs sont des fichiers texte stockés dans un volume partagé.
-
-```
-volumes:
-  logs/
-  ├── auth/
-  │   └── app.log             ← connexions, vérifications, erreurs
-  ├── devoirs/
-  │   └── app.log             ← dépôts, erreurs upload
-  └── quiz/
-      └── app.log             ← tentatives, scores, erreurs
-```
+Aucun fichier de log dans ce dépôt : chaque conteneur écrit sur stdout, et le driver
+Docker `syslog` envoie ces lignes au rsyslog d'argos (`udp://127.0.0.1:514`), qui les range
+dans `logs.db`. Un tag par conteneur : `ada` (auth), `ada-cours`, `ada-mysql`. Les requêtes
+HTTP sont journalisées par le reverse proxy d'argos (`nginx-proxy`).
 
 **Format recommandé (commun à tous les services) :**
 
@@ -304,9 +296,8 @@ volumes:
 
 **Consultation :**
 
-- Accès direct aux fichiers sur le serveur
-- Commandes `tail -f`, `grep`, `awk` pour filtrer
-- Optionnel : un script Python simple pour générer un rapport
+- Page Logs du dashboard argos (filtre par conteneur)
+- Requête en lecture seule sur `logs.db` dans `logs_rsyslog`
 
 ---
 
@@ -343,7 +334,6 @@ Argos n'est PAS sur le réseau backend.
 | `db_data`       | MySQL                | Données persistantes             |
 | `uploads`       | Devoirs (Flask)      | Fichiers déposés par étudiants   |
 | `content`       | Nginx                | Pages statiques des cours        |
-| `logs`          | Tous les containers  | Fichiers de logs texte           |
 
 ---
 
@@ -406,13 +396,7 @@ plateforme/
 │   └── info-201/
 │       └── index.html
 │
-├── uploads/                   (fichiers déposés)
-│
-└── logs/                      (fichiers de logs)
-    ├── auth/
-    ├── devoirs/
-    ├── quiz/
-    └── nginx/
+└── uploads/                   (fichiers déposés)
 ```
 
 ---
@@ -455,9 +439,7 @@ docker compose exec auth python manage.py createsuperuser
 # 5. Déposer les pages statiques
 # Copier les fichiers HTML/PDF dans content/
 
-# 6. Consulter les logs
-tail -f logs/auth/app.log
-grep "403" logs/*/app.log
+# 6. Consulter les logs : page Logs du dashboard argos
 ```
 
 ---
@@ -471,7 +453,7 @@ grep "403" logs/*/app.log
 | Base de données      | MySQL 8.0 unique partagée       |
 | Sessions             | Django sessions en MySQL        |
 | Cache                | Aucun (pas de Redis)            |
-| Logs                 | Fichiers texte par container    |
+| Logs                 | stdout -> syslog d'argos        |
 | HTTPS                | Reverse proxy d'argos           |
 | Pages statiques      | Nginx protégé par Forward Auth  |
 | Permissions          | Vérification en BDD (classe + créneau) |

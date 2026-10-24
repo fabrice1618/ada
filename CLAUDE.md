@@ -35,8 +35,8 @@ cd auth && python manage.py test core --settings=config.settings_test
 docker compose exec -T auth python manage.py archiver_classe 3 > ada-classe-3.zip
 docker compose exec -T auth python manage.py archiver_classe 3 --supprimer - < ada-classe-3.zip
 
-# Logs applicatifs (stdout : syslog d'argos, tag ada)
-tail -f logs/auth/app.log
+# Logs : page Logs du dashboard argos (conteneurs ada, ada-cours, ada-mysql), ou
+docker exec logs_rsyslog python3 -c "import sqlite3; c=sqlite3.connect('file:/logs/logs.db?mode=ro',uri=True); [print(*r) for r in c.execute(\"select received_at, container, msg from system_logs where container like 'ada%' order by id desc limit 50\")]"
 
 # Rebuild d'un service après modification
 docker compose build <service>
@@ -57,4 +57,4 @@ Le dépôt écrit sous `UPLOAD_ROOT` avec un nom généré : `{devoir_id}/{etudi
 
 - Langue du code et des modèles : **français**
 - Configuration via `.env`
-- Logs : `[YYYY-MM-DD HH:MM:SS] LEVEL message` sur stdout (syslog, tag `ada`) et `logs/auth/app.log`
+- Logs : `[YYYY-MM-DD HH:MM:SS] LEVEL message` sur stdout uniquement, envoyé par le driver syslog à argos (tags `ada`, `ada-cours`, `ada-mysql`). Rien n'est écrit dans `logs/`

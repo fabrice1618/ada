@@ -146,12 +146,3 @@ LOGGING = {
         },
     },
 }
-
-if Path('/var/log/auth').is_dir():
-    LOGGING['handlers']['file'] = {
-        'level': 'INFO',
-        'class': 'logging.FileHandler',
-        'filename': '/var/log/auth/app.log',
-        'formatter': 'plateforme',
-    }
-    LOGGING['loggers']['auth']['handlers'].append('file')
